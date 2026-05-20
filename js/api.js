@@ -6,7 +6,7 @@
  */
 
 // ⚠️ Substitua pela URL real da sua API no Vercel
-const API_BASE = 'https://sua-api.vercel.app';
+const API_BASE = 'https://sublime-react.vercel.app/';
 
 /**
  * Fetch centralizado com autenticação e tratamento de erros.
