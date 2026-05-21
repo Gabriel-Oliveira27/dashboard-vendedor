@@ -53,10 +53,10 @@ async function apiFetch(path, opts = {}) {
 /** Todos os endpoints da aplicação */
 const API = {
   // ── Autenticação ──────────────────────────────────────────────────────────
-  login: (usuario, senha) =>
+  login: (email, senha) =>
     apiFetch('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ usuario, senha })
+      body: JSON.stringify({ email, senha }) 
     }),
 
   // ── Estoque ───────────────────────────────────────────────────────────────
