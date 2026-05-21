@@ -31,20 +31,22 @@ async function apiFetch(path, opts = {}) {
   }
 
   // Token expirado ou inválido no servidor → volta ao login
-  if (res.status === 401) {
+ if (res.status === 401) {
+    if (opts.skipAuthRedirect) throw new Error(await extractError(res));
     Auth.clearToken();
     window.location.replace('index.html');
     return null;
   }
+  
 
   if (!res.ok) {
-    let msg = `Erro ${res.status}`;
-    try {
-      const err = await res.json();
-      msg = err.message || err.error || msg;
-    } catch (_) {}
-    throw new Error(msg);
-  }
+  let msg = `Erro ${res.status}`;
+  try {
+    const err = await res.json();
+    msg = err.erro || err.message || err.error || msg;
+  } catch (_) {}
+  throw new Error(msg);
+}
 
   const ct = res.headers.get('Content-Type') || '';
   return ct.includes('application/json') ? res.json() : res.text();
@@ -53,11 +55,12 @@ async function apiFetch(path, opts = {}) {
 /** Todos os endpoints da aplicação */
 const API = {
   // ── Autenticação ──────────────────────────────────────────────────────────
-  login: (email, senha) =>
-    apiFetch('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, senha }) 
-    }),
+login: (email, senha) =>
+  apiFetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, senha }),
+    skipAuthRedirect: true, // ← adiciona isso
+  }),
 
   // ── Estoque ───────────────────────────────────────────────────────────────
   getEstoque: () => apiFetch('/api/estoque'),
