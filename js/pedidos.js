@@ -3,6 +3,11 @@
  * pedidos.js — Módulo de Pedidos
  */
 
+const SVG_RETURN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+  <polyline points="1 4 1 10 7 10"/>
+  <path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
+</svg>`;
+
 const Pedidos = (() => {
   let _data = [];
   let _initialized = false;
@@ -18,19 +23,19 @@ const Pedidos = (() => {
   ];
 
   const ETAPA_LABEL = {
-    RESERVADO:          { label: 'Reservado',          class: 'badge-yellow' },
-    CONFIRMADO:         { label: 'Confirmado',          class: 'badge-blue'   },
-    EM_PREPARO:         { label: 'Em Preparo',          class: 'badge-orange' },
-    SAIU_PARA_ENTREGA:  { label: 'Saiu p/ Entrega',    class: 'badge-purple' },
-    ENTREGUE:           { label: 'Entregue',            class: 'badge-green'  },
-    CANCELADO:          { label: 'Cancelado',           class: 'badge-red'    }
+    RESERVADO:         { label: 'Reservado',       class: 'badge-yellow' },
+    CONFIRMADO:        { label: 'Confirmado',       class: 'badge-blue'   },
+    EM_PREPARO:        { label: 'Em Preparo',       class: 'badge-orange' },
+    SAIU_PARA_ENTREGA: { label: 'Saiu p/ Entrega', class: 'badge-purple' },
+    ENTREGUE:          { label: 'Entregue',         class: 'badge-green'  },
+    CANCELADO:         { label: 'Cancelado',        class: 'badge-red'    },
+    DEVOLVIDO:         { label: 'Devolvido',        class: 'badge-gray'   },
   };
 
   // ── Init ──────────────────────────────────────────────────────────────────
   function init() {
     if (!_initialized) {
       _initialized = true;
-
       document.getElementById('filterEtapa')
         ?.addEventListener('change', applyFilters);
       document.getElementById('filterPagamento')
@@ -76,7 +81,7 @@ const Pedidos = (() => {
     }
 
     setBody(data.map(p => {
-      const et = ETAPA_LABEL[p.etapa] || { label: p.etapa, class: 'badge-gray' };
+      const et  = ETAPA_LABEL[p.etapa] || { label: p.etapa, class: 'badge-gray' };
       const pago = p.pagamento === 'REALIZADO';
       return `
         <tr class="table-row clickable-row" onclick="Pedidos.openPanel('${p.id}')">
@@ -113,7 +118,7 @@ const Pedidos = (() => {
   }
 
   function renderPanel(p) {
-    const et  = ETAPA_LABEL[p.etapa] || { label: p.etapa, class: 'badge-gray' };
+    const et   = ETAPA_LABEL[p.etapa] || { label: p.etapa, class: 'badge-gray' };
     const pago = p.pagamento === 'REALIZADO';
     const nextEtapa = getNextEtapa(p.etapa);
     const nextLabel = nextEtapa ? (ETAPA_LABEL[nextEtapa]?.label || nextEtapa) : null;
@@ -134,6 +139,10 @@ const Pedidos = (() => {
     const endStr = [end.logradouro, end.numero, end.complemento, end.bairro, end.cidade, end.estado]
       .filter(Boolean).join(', ') || '—';
 
+    // Etapas que NÃO permitem devolução
+    const etapasFinais = ['CANCELADO', 'DEVOLVIDO'];
+    const podeDevolucao = !etapasFinais.includes(p.etapa);
+
     document.getElementById('panelBody').innerHTML = `
       <div class="panel-section">
         <h4>Cliente</h4>
@@ -149,9 +158,9 @@ const Pedidos = (() => {
         ${itensHtml}
         <div class="detail-grid mt-8">
           <div class="detail-row"><span>Frete</span><strong>${formatCurrency(p.frete)}</strong></div>
-          ${p.cupom ? `<div class="detail-row"><span>Cupom</span><strong>${esc(p.cupom)}</strong></div>` : ''}
+          ${p.cupom    ? `<div class="detail-row"><span>Cupom</span><strong>${esc(p.cupom)}</strong></div>` : ''}
           ${p.parcelas ? `<div class="detail-row"><span>Parcelas</span><strong>${p.parcelas}x</strong></div>` : ''}
-          ${p.troco  ? `<div class="detail-row"><span>Troco p/</span><strong>${formatCurrency(p.troco)}</strong></div>` : ''}
+          ${p.troco    ? `<div class="detail-row"><span>Troco p/</span><strong>${formatCurrency(p.troco)}</strong></div>` : ''}
           <div class="detail-row total-row"><span>Total</span><strong>${formatCurrency(p.totalVenda)}</strong></div>
         </div>
       </div>
@@ -181,14 +190,22 @@ const Pedidos = (() => {
       <div class="panel-actions">
         ${nextLabel
           ? `<button class="btn btn-primary btn-full" onclick="Pedidos.advanceEtapa('${p.id}', '${p.etapa}')">
-               Avançar → ${nextLabel}
+               Avançar para ${nextLabel}
              </button>`
           : '<button class="btn btn-ghost btn-full" disabled>Etapa final</button>'}
+
         ${!pago
           ? `<button class="btn btn-success btn-full" onclick="Pedidos.markAsPaid('${p.id}')">
-               ✓ Marcar como Pago
+               Marcar como Pago
              </button>`
-          : '<button class="btn btn-ghost btn-full" disabled>✓ Pagamento Confirmado</button>'}
+          : '<button class="btn btn-ghost btn-full" disabled>Pagamento Confirmado</button>'}
+
+        ${podeDevolucao
+          ? `<button class="btn btn-danger btn-full" onclick="Pedidos.devolucao('${p.id}')">
+               ${SVG_RETURN}
+               Registrar Devolução
+             </button>`
+          : ''}
       </div>
     `;
   }
@@ -196,20 +213,18 @@ const Pedidos = (() => {
   // ── Actions ───────────────────────────────────────────────────────────────
   function getNextEtapa(etapa) {
     const idx = ETAPA_SEQUENCE.indexOf(etapa);
-    if (idx === -1 || idx >= ETAPA_SEQUENCE.length - 2) return null; // ENTREGUE e CANCELADO são finais
+    if (idx === -1 || idx >= ETAPA_SEQUENCE.length - 2) return null;
     return ETAPA_SEQUENCE[idx + 1];
   }
 
   function advanceEtapa(id, etapaAtual) {
     const proximo = getNextEtapa(etapaAtual);
     if (!proximo) return;
-
     const proximo_label = ETAPA_LABEL[proximo]?.label || proximo;
 
-    // Confirmação extra ao cancelar
     if (proximo === 'CANCELADO') {
       confirmAction(
-        `⚠️ Tem certeza que deseja <strong>cancelar</strong> este pedido? Esta ação não pode ser revertida.`,
+        `Tem certeza que deseja <strong>cancelar</strong> este pedido? Esta ação não pode ser revertida.`,
         () => doAdvance(id, proximo, proximo_label)
       );
     } else {
@@ -227,7 +242,7 @@ const Pedidos = (() => {
         _activePedido.etapa = novaEtapa;
         renderPanel(_activePedido);
       }
-      showToast(`Etapa avançada para "${label}"!`, 'success');
+      showToast(`Etapa avançada para "${label}".`, 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -249,6 +264,50 @@ const Pedidos = (() => {
     }
   }
 
+  /**
+   * Devolução — restaura o saldo dos produtos no estoque.
+   * Chama POST /api/pedidos/:id/devolucao no backend.
+   */
+  function devolucao(id) {
+    const p = _data.find(x => String(x.id) === String(id));
+    const itens = Array.isArray(p?.itens) ? p.itens : [];
+
+    // Monta lista de itens para exibir na confirmação
+    const listaItens = itens.length
+      ? `<ul style="margin:.5rem 0 0;padding-left:1.25rem;font-size:.85rem;color:var(--text-muted)">
+           ${itens.map(i =>
+             `<li>${esc(i.nome || i.produto)} — x${i.qtd || i.quantidade || 1}</li>`
+           ).join('')}
+         </ul>`
+      : '';
+
+    confirmAction(
+      `Registrar <strong>devolução</strong> deste pedido?
+       O estoque dos produtos será restaurado automaticamente.
+       ${listaItens}`,
+      async () => {
+        try {
+          await API.devolucao(id);
+
+          // Atualiza localmente
+          const pedido = _data.find(x => String(x.id) === String(id));
+          if (pedido) pedido.etapa = 'DEVOLVIDO';
+
+          applyFilters();
+
+          if (_activePedido?.id == id) {
+            _activePedido.etapa = 'DEVOLVIDO';
+            renderPanel(_activePedido);
+          }
+
+          showToast('Devolução registrada e estoque restaurado.', 'success');
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      }
+    );
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
   function setBody(html) {
     const el = document.getElementById('pedidosTableBody');
@@ -264,7 +323,7 @@ const Pedidos = (() => {
       .replace(/"/g, '&quot;');
   }
 
-  return { init, load, openPanel, closePanel, advanceEtapa, markAsPaid };
+  return { init, load, openPanel, closePanel, advanceEtapa, markAsPaid, devolucao };
 })();
 
 window.Pedidos = Pedidos;
