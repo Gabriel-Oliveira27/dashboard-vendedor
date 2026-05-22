@@ -79,7 +79,7 @@ const Estoque = (() => {
           <td class="td-thumb">${thumb}</td>
           <td class="font-medium">${esc(nome)}</td>
           <td class="td-muted">${esc(p.linha)}</td>
-          <td class="td-muted">${p.litros ? p.litros + ' L' : '—'}</td>
+          <td class="td-muted">${p.litros || '—'}</td>
           <td class="td-muted">${esc(p.cores)}</td>
           <td>
             <span class="badge ${baixo ? 'badge-red' : 'badge-green'}">${qtd}</span>
