@@ -3,38 +3,80 @@
  * login.js — Lógica da tela de login
  */
 
+(function () {
+  const t = localStorage.getItem('sublime-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
-  // Se já está logado, redireciona direto para o dashboard
   if (Auth.isTokenValid()) {
     window.location.replace('dashboard.html');
     return;
   }
 
-  const form      = document.getElementById('loginForm');
-  const btnLogin  = document.getElementById('btnLogin');
-  const btnText   = btnLogin.querySelector('.btn-text');
-  const btnLoader = btnLogin.querySelector('.btn-loader');
-  const errBox    = document.getElementById('loginError');
-  const toggleBtn = document.getElementById('toggleSenha');
+  const form       = document.getElementById('loginForm');
+  const btnLogin   = document.getElementById('btnLogin');
+  const btnText    = btnLogin.querySelector('.btn-text');
+  const btnLoader  = btnLogin.querySelector('.btn-loader');
+  const errBox     = document.getElementById('loginError');
+  const toggleBtn  = document.getElementById('toggleSenha');
   const senhaInput = document.getElementById('senha');
+  const themeBtn   = document.getElementById('loginThemeToggle');
+
+  // Garante estado inicial correto — não depende do atributo hidden
+  btnText.style.display   = '';
+  btnLoader.style.display = 'none';
+  errBox.style.display    = 'none';
+
+  // ── Theme toggle ──────────────────────────────────────────────────────────
+  const SVG_SUN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+    <circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>`;
+
+  const SVG_MOON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>`;
+
+  function updateThemeIcon() {
+    if (!themeBtn) return;
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    themeBtn.innerHTML = isDark ? SVG_SUN : SVG_MOON;
+    themeBtn.title = isDark ? 'Modo claro' : 'Modo escuro';
+  }
+
+  updateThemeIcon();
+
+  themeBtn?.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('sublime-theme', next);
+    updateThemeIcon();
+  });
 
   // ── Toggle mostrar/ocultar senha ──────────────────────────────────────────
   toggleBtn.addEventListener('click', () => {
     const isPassword = senhaInput.type === 'password';
     senhaInput.type = isPassword ? 'text' : 'password';
     toggleBtn.setAttribute('aria-label', isPassword ? 'Ocultar senha' : 'Mostrar senha');
-    toggleBtn.querySelector('.eye-open').style.display  = isPassword ? 'none'  : 'block';
+    toggleBtn.querySelector('.eye-open').style.display   = isPassword ? 'none'  : 'block';
     toggleBtn.querySelector('.eye-closed').style.display = isPassword ? 'block' : 'none';
   });
 
   // ── Submit ────────────────────────────────────────────────────────────────
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const usuario = document.getElementById('usuario').value.trim();
-    const senha   = senhaInput.value;
 
-    if (!usuario || !senha) {
-      showError('Preencha usuário e senha.');
+    const email = document.getElementById('usuario').value.trim();
+    const senha = senhaInput.value;
+
+    if (!email || !senha) {
+      showError('Preencha o e-mail e a senha.');
+      shake(btnLogin);
       return;
     }
 
@@ -42,37 +84,44 @@ document.addEventListener('DOMContentLoaded', () => {
     hideError();
 
     try {
-      const res = await API.login(usuario, senha);
+      const res = await API.login(email, senha);
       if (res?.token) {
         Auth.setToken(res.token);
         window.location.replace('dashboard.html');
       } else {
         showError('Resposta inesperada do servidor.');
+        setLoading(false);
       }
     } catch (err) {
+      // API retorna "Usuário não encontrado" ou "Senha incorreta" — exibe direto
       showError(err.message || 'Falha ao fazer login. Tente novamente.');
       shake(btnLogin);
-    } finally {
       setLoading(false);
     }
   });
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function setLoading(state) {
-    btnLogin.disabled = state;
-    btnText.hidden    = state;
-    btnLoader.hidden  = !state;
+    btnLogin.disabled       = state;
+    btnText.style.display   = state ? 'none' : '';
+    btnLoader.style.display = state ? 'flex' : 'none';
   }
 
   function showError(msg) {
-    errBox.textContent = msg;
-    errBox.hidden = false;
+    errBox.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>${msg}</span>`;
+    errBox.style.display = 'flex';
     errBox.classList.add('shake');
     errBox.addEventListener('animationend', () => errBox.classList.remove('shake'), { once: true });
   }
 
   function hideError() {
-    errBox.hidden = true;
+    errBox.style.display = 'none';
   }
 
   function shake(el) {

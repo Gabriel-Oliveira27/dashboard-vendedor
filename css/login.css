@@ -12,12 +12,13 @@
   overflow: hidden;
 }
 
-/* ── Background com grade sutil ─────────────────────────────────── */
+/* ── Background ─────────────────────────────────────────────────── */
 .login-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   background: var(--bg);
+  transition: background 0.25s;
 }
 
 .login-grid {
@@ -31,7 +32,6 @@
   mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, #000 60%, transparent 100%);
 }
 
-/* Ponto de luz roxo central */
 .login-bg::after {
   content: '';
   position: absolute;
@@ -42,6 +42,31 @@
   transform: translate(-50%, -50%);
   background: radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, transparent 70%);
   pointer-events: none;
+}
+
+/* ── Theme toggle (top-right) ───────────────────────────────────── */
+.login-theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  line-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.login-theme-toggle:hover {
+  background: var(--surface-hover);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* ── Card ───────────────────────────────────────────────────────── */
@@ -61,6 +86,13 @@
     0 0 0 1px rgba(124, 58, 237, 0.08),
     0 24px 64px rgba(0, 0, 0, 0.5);
   animation: card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: background 0.25s, border-color 0.25s;
+}
+
+html[data-theme="light"] .login-card {
+  box-shadow:
+    0 0 0 1px rgba(124, 58, 237, 0.08),
+    0 24px 64px rgba(0, 0, 0, 0.12);
 }
 
 @keyframes card-in {
@@ -159,7 +191,7 @@
   font-size: 0.95rem;
   color: var(--text);
   font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.25s;
   box-sizing: border-box;
 }
 
@@ -192,8 +224,6 @@
   height: 16px;
   display: block;
 }
-
-.toggle-password .eye-closed { display: none; }
 
 /* ── Botão de login ─────────────────────────────────────────────── */
 .btn-login {
@@ -233,12 +263,15 @@
 .btn-loader {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
 }
 
 .spinner {
   width: 20px;
   height: 20px;
   animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 .spinner circle {
@@ -260,6 +293,14 @@
   color: #f87171;
   font-size: 0.875rem;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+html[data-theme="light"] .login-error {
+  color: #dc2626;
 }
 
 /* ── Animação shake ─────────────────────────────────────────────── */

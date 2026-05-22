@@ -1,21 +1,39 @@
 'use strict';
 /**
  * dashboard.js — Controlador principal do painel
- * Gerencia: guard de autenticação, navegação, toasts,
- * módulo Visão Geral, módulo Relatório e sistema de modais.
  */
 
-// ════════════════════════════════════════════════════════════════════════════
-// GUARD — deve ser o primeiro código executado
-// ════════════════════════════════════════════════════════════════════════════
+// Aplica tema antes de qualquer render
+(function () {
+  const t = localStorage.getItem('sublime-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+
+// ── GUARD ────────────────────────────────────────────────────────────────────
 if (!Auth.requireAuth()) {
-  // requireAuth já redireciona; throw impede execução do restante
   throw new Error('Sessão inválida ou expirada.');
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// UTILITÁRIOS GLOBAIS (acessíveis pelos módulos)
-// ════════════════════════════════════════════════════════════════════════════
+// ── SVG ICONS ────────────────────────────────────────────────────────────────
+const ICONS = {
+  orders:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>`,
+  alert:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  dollar:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+  monitor:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+  trending: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+  calendar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+  target:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+  check:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>`,
+  x:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  warning:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  info:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  close:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  sun:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
+  moon:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
+  refresh:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+};
+
+// ── UTILITÁRIOS GLOBAIS ───────────────────────────────────────────────────────
 function formatCurrency(value) {
   return (parseFloat(value) || 0).toLocaleString('pt-BR', {
     style: 'currency', currency: 'BRL'
@@ -63,44 +81,74 @@ function createSkeletonCards(n) {
   return html;
 }
 
-// Expõe globalmente para os módulos
-window.formatCurrency   = formatCurrency;
-window.formatDate       = formatDate;
-window.isToday          = isToday;
-window.isThisMonth      = isThisMonth;
+window.formatCurrency      = formatCurrency;
+window.formatDate          = formatDate;
+window.isToday             = isToday;
+window.isThisMonth         = isThisMonth;
 window.createSkeletonRows  = createSkeletonRows;
 window.createSkeletonCards = createSkeletonCards;
 
-// ════════════════════════════════════════════════════════════════════════════
-// TOASTS
-// ════════════════════════════════════════════════════════════════════════════
-const TOAST_ICONS = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+// ── THEME ────────────────────────────────────────────────────────────────────
+const THEME_KEY = 'sublime-theme';
+
+function getCurrentTheme() {
+  return document.documentElement.getAttribute('data-theme') || 'dark';
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem(THEME_KEY, theme);
+  const btn = document.getElementById('themeToggle');
+  if (btn) {
+    const isDark = theme === 'dark';
+    btn.innerHTML = isDark ? ICONS.sun : ICONS.moon;
+    btn.title = isDark ? 'Modo claro' : 'Modo escuro';
+  }
+}
+
+function toggleTheme() {
+  setTheme(getCurrentTheme() === 'dark' ? 'light' : 'dark');
+}
+
+// ── TOASTS ───────────────────────────────────────────────────────────────────
+const TOAST_META = {
+  success: { icon: ICONS.check,   title: 'Sucesso'    },
+  error:   { icon: ICONS.x,       title: 'Erro'       },
+  warning: { icon: ICONS.warning, title: 'Atenção'    },
+  info:    { icon: ICONS.info,    title: 'Informação' },
+};
 
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
+  const meta = TOAST_META[type] || TOAST_META.info;
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   toast.innerHTML = `
-    <span class="toast-icon">${TOAST_ICONS[type] || 'ℹ'}</span>
-    <span class="toast-msg">${message}</span>
-    <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Fechar">✕</button>`;
+    <div class="toast-icon">${meta.icon}</div>
+    <div class="toast-body">
+      <div class="toast-title">${meta.title}</div>
+      <div class="toast-msg">${message}</div>
+    </div>
+    <button class="toast-close" aria-label="Fechar">${ICONS.close}</button>`;
+
+  toast.querySelector('.toast-close').addEventListener('click', () => dismissToast(toast));
   container.appendChild(toast);
 
-  // Força reflow para animar entrada
   requestAnimationFrame(() => toast.classList.add('toast-in'));
 
-  setTimeout(() => {
-    toast.classList.remove('toast-in');
-    toast.classList.add('toast-out');
-    toast.addEventListener('transitionend', () => toast.remove(), { once: true });
-  }, 3200);
+  setTimeout(() => dismissToast(toast), 3500);
+}
+
+function dismissToast(toast) {
+  if (!toast.isConnected) return;
+  toast.classList.remove('toast-in');
+  toast.classList.add('toast-out');
+  toast.addEventListener('transitionend', () => toast.remove(), { once: true });
 }
 
 window.showToast = showToast;
 
-// ════════════════════════════════════════════════════════════════════════════
-// MODAL SYSTEM
-// ════════════════════════════════════════════════════════════════════════════
+// ── MODAL SYSTEM ─────────────────────────────────────────────────────────────
 function openModal(html) {
   document.getElementById('modalContainer').innerHTML = html;
   document.getElementById('modalOverlay').classList.add('visible');
@@ -117,7 +165,7 @@ function confirmAction(message, onConfirm) {
     <div class="modal-card confirm-card">
       <div class="modal-header">
         <h3>Confirmar</h3>
-        <button class="btn-icon" onclick="closeModal()" aria-label="Fechar">✕</button>
+        <button class="btn-icon" onclick="closeModal()" aria-label="Fechar">${ICONS.close}</button>
       </div>
       <div class="modal-body">
         <p class="confirm-msg">${message}</p>
@@ -134,13 +182,11 @@ function confirmAction(message, onConfirm) {
   });
 }
 
-window.openModal    = openModal;
-window.closeModal   = closeModal;
+window.openModal     = openModal;
+window.closeModal    = closeModal;
 window.confirmAction = confirmAction;
 
-// ════════════════════════════════════════════════════════════════════════════
-// NAVEGAÇÃO
-// ════════════════════════════════════════════════════════════════════════════
+// ── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
 const SECTION_TITLES = {
   overview:  'Visão Geral',
   estoque:   'Estoque',
@@ -182,9 +228,7 @@ function initSection(section) {
 
 window.navigateTo = navigateTo;
 
-// ════════════════════════════════════════════════════════════════════════════
-// SIDEBAR / MOBILE
-// ════════════════════════════════════════════════════════════════════════════
+// ── SIDEBAR / MOBILE ─────────────────────────────────────────────────────────
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebarOverlay').classList.toggle('visible');
@@ -195,9 +239,7 @@ function closeSidebar() {
   document.getElementById('sidebarOverlay').classList.remove('visible');
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// MÓDULO: VISÃO GERAL
-// ════════════════════════════════════════════════════════════════════════════
+// ── VISÃO GERAL ───────────────────────────────────────────────────────────────
 let _pedidosCache = null;
 let _estoqueCache = null;
 
@@ -234,19 +276,14 @@ function renderOverview(pedidos, estoque) {
 
   document.getElementById('overviewCards').innerHTML = `
     <div class="overview-card">
-      <div class="card-icon icon-blue">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
-      </div>
+      <div class="card-icon icon-blue">${ICONS.orders}</div>
       <div class="card-info">
         <span class="card-label">Pedidos Hoje</span>
         <span class="card-value">${hoje.length}</span>
       </div>
     </div>
-
     <div class="overview-card">
-      <div class="card-icon icon-red">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      </div>
+      <div class="card-icon icon-red">${ICONS.alert}</div>
       <div class="card-info">
         <span class="card-label">Pagtos. Pendentes</span>
         <span class="card-value">
@@ -255,21 +292,15 @@ function renderOverview(pedidos, estoque) {
         </span>
       </div>
     </div>
-
     <div class="overview-card">
-      <div class="card-icon icon-green">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      </div>
+      <div class="card-icon icon-green">${ICONS.dollar}</div>
       <div class="card-info">
         <span class="card-label">Vendas Hoje</span>
         <span class="card-value">${formatCurrency(totalHoje)}</span>
       </div>
     </div>
-
     <div class="overview-card">
-      <div class="card-icon icon-purple">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-      </div>
+      <div class="card-icon icon-purple">${ICONS.monitor}</div>
       <div class="card-info">
         <span class="card-label">Vendas no Mês</span>
         <span class="card-value">${formatCurrency(totalMes)}</span>
@@ -277,14 +308,13 @@ function renderOverview(pedidos, estoque) {
     </div>
   `;
 
-  // Lista de estoque baixo
   const el = document.getElementById('lowStockList');
   if (!baixo.length) {
-    el.innerHTML = '<p class="empty-state-small">✓ Todos os produtos com estoque adequado.</p>';
+    el.innerHTML = '<p class="empty-state-small">Todos os produtos com estoque adequado.</p>';
   } else {
     el.innerHTML = baixo.map(p => `
       <div class="low-stock-item">
-        <span class="low-stock-name">${p.nome || '—'}</span>
+        <span class="low-stock-name">${p.produto || p.nome || '—'}</span>
         <span class="badge badge-red">${p.qtd} un</span>
       </div>`).join('');
   }
@@ -292,9 +322,7 @@ function renderOverview(pedidos, estoque) {
 
 window.loadOverview = loadOverview;
 
-// ════════════════════════════════════════════════════════════════════════════
-// MÓDULO: RELATÓRIO
-// ════════════════════════════════════════════════════════════════════════════
+// ── RELATÓRIO ─────────────────────────────────────────────────────────────────
 async function loadRelatorio() {
   const el = document.getElementById('relatorioContainer');
   el.innerHTML = '<div class="overview-grid">' + createSkeletonCards(3) + '</div>';
@@ -321,28 +349,27 @@ function renderRelatorio(pedidos) {
   document.getElementById('relatorioContainer').innerHTML = `
     <div class="overview-grid">
       <div class="overview-card">
-        <div class="card-icon icon-green">💰</div>
+        <div class="card-icon icon-green">${ICONS.trending}</div>
         <div class="card-info">
           <span class="card-label">Lucro Total</span>
           <span class="card-value">${formatCurrency(total)}</span>
         </div>
       </div>
       <div class="overview-card">
-        <div class="card-icon icon-purple">📅</div>
+        <div class="card-icon icon-purple">${ICONS.calendar}</div>
         <div class="card-info">
           <span class="card-label">Lucro do Mês</span>
           <span class="card-value">${formatCurrency(totalMes)}</span>
         </div>
       </div>
       <div class="overview-card">
-        <div class="card-icon icon-blue">🎯</div>
+        <div class="card-icon icon-blue">${ICONS.target}</div>
         <div class="card-info">
           <span class="card-label">Ticket Médio</span>
           <span class="card-value">${formatCurrency(ticket)}</span>
         </div>
       </div>
     </div>
-
     <div class="chart-card">
       <div class="chart-header">
         <h3 class="chart-title">Vendas — Últimos 14 Dias</h3>
@@ -353,7 +380,6 @@ function renderRelatorio(pedidos) {
     </div>
   `;
 
-  // Aguarda renderização para pegar tamanho correto do canvas
   requestAnimationFrame(() => drawChart(pagos));
 }
 
@@ -361,7 +387,6 @@ function drawChart(pedidos) {
   const canvas = document.getElementById('salesChart');
   if (!canvas) return;
 
-  // Build last 14 days
   const days = [];
   const now = new Date();
   for (let i = 13; i >= 0; i--) {
@@ -376,29 +401,26 @@ function drawChart(pedidos) {
     if (day) day.total += parseFloat(p.totalVenda) || 0;
   });
 
-  // Canvas dimensions
   const W = canvas.offsetWidth || 600;
   const H = 220;
   canvas.width  = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  const pad   = { top: 24, right: 16, bottom: 44, left: 64 };
+  const isLight = getCurrentTheme() === 'light';
+  const C_GRID = isLight ? '#dddde8' : '#2a2a38';
+  const C_TEXT = isLight ? '#9090b8' : '#6b6b88';
+  const C_BAR  = '#7c3aed';
+
+  const pad    = { top: 24, right: 16, bottom: 44, left: 64 };
   const chartW = W - pad.left - pad.right;
   const chartH = H - pad.top  - pad.bottom;
   const maxVal = Math.max(...days.map(d => d.total), 100);
   const barW   = Math.max(8, (chartW / days.length) * 0.55);
   const gap    = chartW / days.length;
 
-  // Colours (match CSS theme)
-  const C_GRID  = '#2a2a38';
-  const C_TEXT  = '#6b6b88';
-  const C_BAR   = '#7c3aed';
-  const C_BAR_H = '#9d5cf6';
-
   ctx.clearRect(0, 0, W, H);
 
-  // Grid + Y labels
   const ySteps = 4;
   for (let i = 0; i <= ySteps; i++) {
     const y = pad.top + (chartH / ySteps) * i;
@@ -407,28 +429,22 @@ function drawChart(pedidos) {
     ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
     ctx.setLineDash([]);
-
     const val = maxVal - (maxVal / ySteps) * i;
-    ctx.fillStyle  = C_TEXT;
-    ctx.font       = '11px system-ui, sans-serif';
-    ctx.textAlign  = 'right';
+    ctx.fillStyle    = C_TEXT;
+    ctx.font         = '11px system-ui, sans-serif';
+    ctx.textAlign    = 'right';
     ctx.textBaseline = 'middle';
     ctx.fillText(shortCurrency(val), pad.left - 6, y);
   }
 
-  // Bars + X labels
   days.forEach((day, i) => {
     const barH = Math.max(2, (day.total / maxVal) * chartH);
     const x    = pad.left + gap * i + (gap - barW) / 2;
     const y    = pad.top + chartH - barH;
-
-    // Bar with rounded top
     ctx.fillStyle = day.total > 0 ? C_BAR : C_GRID;
     ctx.beginPath();
     ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
     ctx.fill();
-
-    // X label (every other day on small screens)
     if (W < 500 && i % 2 !== 0) return;
     ctx.fillStyle    = C_TEXT;
     ctx.font         = '10px system-ui, sans-serif';
@@ -445,25 +461,30 @@ function shortCurrency(v) {
 
 window.loadRelatorio = loadRelatorio;
 
-// ════════════════════════════════════════════════════════════════════════════
-// BOOTSTRAP
-// ════════════════════════════════════════════════════════════════════════════
+// ── BOOTSTRAP ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Exibe nome do usuário na sidebar
+  // Exibe nome do usuário
   const info = Auth.getUserInfo();
   const userEl = document.getElementById('sidebarUserName');
   if (userEl && info) userEl.textContent = info.nome || info.sub || 'Vendedor';
+
+  // Inicializa tema
+  setTheme(getCurrentTheme());
+
+  // Theme toggle
+  document.getElementById('themeToggle')
+    ?.addEventListener('click', toggleTheme);
 
   // Nav items
   document.querySelectorAll('[data-section]').forEach(el => {
     el.addEventListener('click', (e) => { e.preventDefault(); navigateTo(el.dataset.section); });
   });
 
-  // Hamburger (mobile)
+  // Hamburger
   document.getElementById('hamburger')
     ?.addEventListener('click', toggleSidebar);
 
-  // Overlays fecham painéis
+  // Overlays
   document.getElementById('sidebarOverlay')
     ?.addEventListener('click', closeSidebar);
 
@@ -473,11 +494,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('panelOverlay')
     ?.addEventListener('click', () => Pedidos.closePanel());
 
-  // Fechar painel lateral
   document.getElementById('btnClosePanel')
     ?.addEventListener('click', () => Pedidos.closePanel());
 
-  // Logout
   document.getElementById('btnLogout')
     ?.addEventListener('click', () => Auth.logout());
 

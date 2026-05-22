@@ -1,18 +1,10 @@
 'use strict';
 /**
  * api.js — Camada de comunicação com a API REST (Next.js / Vercel)
- * Centraliza todos os fetch, injeta o header Authorization
- * e redireciona para login automaticamente em caso de 401.
  */
 
-// ⚠️ Substitua pela URL real da sua API no Vercel
 const API_BASE = 'https://sublime-react.vercel.app';
 
-/**
- * Fetch centralizado com autenticação e tratamento de erros.
- * @param {string} path  - rota relativa, ex: '/api/estoque'
- * @param {object} opts  - opções do fetch (method, body, headers...)
- */
 async function apiFetch(path, opts = {}) {
   const token = Auth.getToken();
   const isFormData = opts.body instanceof FormData;
@@ -23,46 +15,50 @@ async function apiFetch(path, opts = {}) {
     ...(opts.headers || {})
   };
 
+  const { skipAuthRedirect, ...fetchOpts } = opts;
+
   let res;
   try {
-    res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+    res = await fetch(`${API_BASE}${path}`, { ...fetchOpts, headers });
   } catch (_) {
     throw new Error('Sem conexão com o servidor. Verifique sua internet.');
   }
 
-  // Token expirado ou inválido no servidor → volta ao login
- if (res.status === 401) {
-    if (opts.skipAuthRedirect) throw new Error(await extractError(res));
+  if (res.status === 401) {
+    if (skipAuthRedirect) {
+      let msg = 'Credenciais inválidas.';
+      try {
+        const err = await res.json();
+        msg = err.erro || err.message || err.error || msg;
+      } catch (_) {}
+      throw new Error(msg);
+    }
     Auth.clearToken();
     window.location.replace('index.html');
     return null;
   }
-  
 
   if (!res.ok) {
-  let msg = `Erro ${res.status}`;
-  try {
-    const err = await res.json();
-    msg = err.erro || err.message || err.error || msg;
-  } catch (_) {}
-  throw new Error(msg);
-}
+    let msg = `Erro ${res.status}`;
+    try {
+      const err = await res.json();
+      msg = err.erro || err.message || err.error || msg;
+    } catch (_) {}
+    throw new Error(msg);
+  }
 
   const ct = res.headers.get('Content-Type') || '';
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
-/** Todos os endpoints da aplicação */
 const API = {
-  // ── Autenticação ──────────────────────────────────────────────────────────
-login: (email, senha) =>
-  apiFetch('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, senha }),
-    skipAuthRedirect: true, // ← adiciona isso
-  }),
+  login: (email, senha) =>
+    apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, senha }),
+      skipAuthRedirect: true,
+    }),
 
-  // ── Estoque ───────────────────────────────────────────────────────────────
   getEstoque: () => apiFetch('/api/estoque'),
 
   updateEstoque: (id, dados) =>
@@ -77,7 +73,6 @@ login: (email, senha) =>
   uploadImagem: (formData) =>
     apiFetch('/api/upload', { method: 'POST', body: formData }),
 
-  // ── Pedidos ───────────────────────────────────────────────────────────────
   getPedidos: () => apiFetch('/api/pedidos'),
 
   updateEtapa: (id, etapa) =>
@@ -92,7 +87,6 @@ login: (email, senha) =>
       body: JSON.stringify({ pagamento: 'REALIZADO' })
     }),
 
-  // ── Cupons ────────────────────────────────────────────────────────────────
   getCupons: () => apiFetch('/api/cupons'),
 
   createCupom: (dados) =>
@@ -104,7 +98,6 @@ login: (email, senha) =>
   deleteCupom: (id) =>
     apiFetch(`/api/cupons/${id}`, { method: 'DELETE' }),
 
-  // ── Chave PIX ─────────────────────────────────────────────────────────────
   getPix: () => apiFetch('/api/config/pix'),
 
   updatePix: (chave) =>

@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Painel de Vendas Tupperware">
+  <meta name="description" content="Painel de Vendas">
   <title>TupperStore — Painel</title>
+  <!-- Aplica tema antes do render para evitar flash -->
+  <script>(function(){const t=localStorage.getItem('sublime-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})()</script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="dashboard-body">
@@ -87,13 +89,11 @@
 
   </aside>
 
-  <!-- Overlay sidebar (mobile) -->
   <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
   <!-- ═══════════════════════════ MAIN ══════════════════════════════ -->
   <main class="main-content" id="mainContent">
 
-    <!-- Header -->
     <header class="main-header">
       <button class="hamburger" id="hamburger" aria-label="Abrir menu" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
@@ -103,12 +103,16 @@
         </svg>
       </button>
       <h1 id="pageTitle">Visão Geral</h1>
+
+      <!-- Toggle de tema -->
+      <button id="themeToggle" title="Alternar tema" aria-label="Alternar tema claro/escuro">
+        <!-- Ícone injetado pelo dashboard.js -->
+      </button>
     </header>
 
-    <!-- Toast container -->
     <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
-    <!-- ─────────────── SEÇÃO: VISÃO GERAL ─────────────── -->
+    <!-- ─────────────── VISÃO GERAL ─────────────── -->
     <section class="content-section" id="section-overview" aria-label="Visão Geral">
       <div class="section-header">
         <h2>Visão Geral</h2>
@@ -119,17 +123,17 @@
       </div>
       <div class="overview-cards" id="overviewCards"></div>
       <div class="low-stock-section">
-        <p class="section-subtitle">⚠ Estoque Baixo (menos de 5 unidades)</p>
+        <p class="section-subtitle">Estoque Baixo (menos de 5 unidades)</p>
         <div class="low-stock-list" id="lowStockList"></div>
       </div>
     </section>
 
-    <!-- ─────────────── SEÇÃO: ESTOQUE ─────────────── -->
+    <!-- ─────────────── ESTOQUE ─────────────── -->
     <section class="content-section" id="section-estoque" aria-label="Estoque">
       <div class="section-header">
         <h2>Estoque</h2>
         <div class="section-actions">
-          <input type="search" id="estoqueSearch" class="input-search" placeholder="🔍 Buscar produto…" aria-label="Buscar produto">
+          <input type="search" id="estoqueSearch" class="input-search" placeholder="Buscar produto…" aria-label="Buscar produto">
           <button class="btn btn-primary" id="btnNewProduto">+ Produto</button>
           <button class="btn btn-ghost btn-sm" onclick="Estoque.load()" aria-label="Atualizar estoque">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -155,7 +159,7 @@
       </div>
     </section>
 
-    <!-- ─────────────── SEÇÃO: PEDIDOS ─────────────── -->
+    <!-- ─────────────── PEDIDOS ─────────────── -->
     <section class="content-section" id="section-pedidos" aria-label="Pedidos">
       <div class="section-header">
         <h2>Pedidos</h2>
@@ -197,7 +201,7 @@
       </div>
     </section>
 
-    <!-- ─────────────── SEÇÃO: CUPONS ─────────────── -->
+    <!-- ─────────────── CUPONS ─────────────── -->
     <section class="content-section" id="section-cupons" aria-label="Cupons">
       <div class="section-header">
         <h2>Cupons</h2>
@@ -223,7 +227,7 @@
       </div>
     </section>
 
-    <!-- ─────────────── SEÇÃO: PIX ─────────────── -->
+    <!-- ─────────────── PIX ─────────────── -->
     <section class="content-section" id="section-pix" aria-label="Chave PIX">
       <div class="section-header">
         <h2>Chave PIX</h2>
@@ -231,7 +235,7 @@
       <div id="pixContainer" class="pix-container"></div>
     </section>
 
-    <!-- ─────────────── SEÇÃO: RELATÓRIO ─────────────── -->
+    <!-- ─────────────── RELATÓRIO ─────────────── -->
     <section class="content-section" id="section-relatorio" aria-label="Relatório de Lucro">
       <div class="section-header">
         <h2>Relatório de Lucro</h2>
@@ -243,7 +247,7 @@
       <div id="relatorioContainer"></div>
     </section>
 
-  </main><!-- /main-content -->
+  </main>
 
   <!-- ═══════════════════════ BOTTOM NAV (mobile) ═══════════════════ -->
   <nav class="bottom-nav" id="bottomNav" aria-label="Navegação rápida">
@@ -269,16 +273,14 @@
     </button>
   </nav>
 
-  <!-- ══════════════════ PAINEL LATERAL (Pedido) ════════════════════ -->
+  <!-- ═══════════════════ PAINEL LATERAL (Pedido) ═══════════════════ -->
   <div class="panel-overlay" id="panelOverlay" aria-hidden="true"></div>
-
   <aside class="detail-panel" id="detailPanel" aria-label="Detalhes do pedido" role="dialog">
     <div class="panel-header">
       <h3>Detalhes do Pedido</h3>
       <button class="btn-icon" id="btnClosePanel" aria-label="Fechar painel">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-          <line x1="18" y1="6" x2="6" y2="18"/>
-          <line x1="6" y1="6" x2="18" y2="18"/>
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
       </button>
     </div>

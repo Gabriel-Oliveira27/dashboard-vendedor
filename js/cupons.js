@@ -1,7 +1,15 @@
 'use strict';
 /**
  * cupons.js — Módulo de Cupons
+ * Banco: coluna "cupom" (não "codigo"), "quantidadeUsos" (não "usosRestantes")
  */
+
+const SVG_TRASH_SM = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+  <polyline points="3 6 5 6 21 6"/>
+  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+  <path d="M10 11v6M14 11v6"/>
+  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+</svg>`;
 
 const Cupons = (() => {
   let _data = [];
@@ -38,18 +46,23 @@ const Cupons = (() => {
       return;
     }
     setTableBody(data.map(c => {
-      const esgotado = (parseInt(c.usosRestantes) || 0) <= 0;
+      // Banco usa "cupom" e "quantidadeUsos"
+      const codigo = c.cupom || c.codigo || '—';
+      const usos   = parseInt(c.quantidadeUsos ?? c.usosRestantes) || 0;
+      const esgotado = usos <= 0;
       return `
         <tr class="table-row">
-          <td><code class="code-badge">${c.codigo}</code></td>
-          <td>${c.desconto}</td>
+          <td><code class="code-badge">${esc(codigo)}</code></td>
+          <td>${esc(c.desconto)}</td>
           <td>
             <span class="badge ${esgotado ? 'badge-red' : 'badge-green'}">
-              ${esgotado ? 'Esgotado' : c.usosRestantes + ' uso(s)'}
+              ${esgotado ? 'Esgotado' : usos + ' uso(s)'}
             </span>
           </td>
           <td>
-            <button class="btn-icon btn-delete" onclick="Cupons.deleteItem('${c.id}')" title="Excluir cupom">🗑️</button>
+            <button class="btn-icon btn-danger-icon" onclick="Cupons.deleteItem('${c.id}')" title="Excluir cupom">
+              ${SVG_TRASH_SM}
+            </button>
           </td>
         </tr>`;
     }).join(''));
@@ -65,7 +78,11 @@ const Cupons = (() => {
       <div class="modal-card">
         <div class="modal-header">
           <h3>Novo Cupom</h3>
-          <button class="btn-icon" onclick="closeModal()" aria-label="Fechar">✕</button>
+          <button class="btn-icon" onclick="closeModal()" aria-label="Fechar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-group">
@@ -78,7 +95,7 @@ const Cupons = (() => {
               oninput="this.value = this.value.toUpperCase()"
               autocomplete="off"
             >
-            <span class="field-hint">O código será convertido para maiúsculas automaticamente.</span>
+            <span class="field-hint">Convertido automaticamente para maiúsculas.</span>
           </div>
           <div class="form-group">
             <label for="mCupomDesconto">Desconto *</label>
@@ -123,7 +140,12 @@ const Cupons = (() => {
     if (btn) { btn.disabled = true; btn.textContent = 'Criando…'; }
 
     try {
-      const novo = await API.createCupom({ codigo, desconto, usosRestantes: usos });
+      // Envia com os nomes corretos das colunas do banco
+      const novo = await API.createCupom({
+        cupom: codigo,
+        desconto,
+        quantidadeUsos: usos,
+      });
       _data.unshift(novo);
       render(_data);
       closeModal();
@@ -136,8 +158,9 @@ const Cupons = (() => {
 
   function deleteItem(id) {
     const cupom = _data.find(c => c.id == id);
+    const codigo = cupom?.cupom || cupom?.codigo || id;
     confirmAction(
-      `Excluir o cupom <strong>${cupom?.codigo || id}</strong>? Esta ação não pode ser desfeita.`,
+      `Excluir o cupom <strong>${esc(codigo)}</strong>? Esta ação não pode ser desfeita.`,
       async () => {
         try {
           await API.deleteCupom(id);
@@ -149,6 +172,15 @@ const Cupons = (() => {
         }
       }
     );
+  }
+
+  function esc(str) {
+    return (str || '—')
+      .toString()
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   return { init, load, save, deleteItem };
