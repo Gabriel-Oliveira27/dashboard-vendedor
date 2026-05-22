@@ -98,6 +98,9 @@ const API = {
   deleteCupom: (id) =>
     apiFetch(`/api/cupons/${id}`, { method: 'DELETE' }),
 
+  devolucao: (id) =>
+    apiFetch(`/api/pedidos/${id}/devolucao`, { method: 'POST' }),
+
   getPix: () => apiFetch('/api/config/pix'),
 
   updatePix: (chave) =>
