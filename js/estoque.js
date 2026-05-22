@@ -1,7 +1,7 @@
 'use strict';
 /**
  * estoque.js — Módulo de Estoque
- * Coluna do banco: "produto" (não "nome")
+ * Banco: "produto", imagem vem como URL completa (Cloudinary)
  */
 
 const SVG_PACKAGE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
@@ -22,7 +22,7 @@ const SVG_TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
   <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
 </svg>`;
 
-const SVG_IMAGE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+const SVG_IMAGE_PLACEHOLDER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
   <rect x="3" y="3" width="18" height="18" rx="2"/>
   <circle cx="8.5" cy="8.5" r="1.5"/>
   <polyline points="21 15 16 10 5 21"/>
@@ -67,13 +67,16 @@ const Estoque = (() => {
       return;
     }
     setBody(data.map(p => {
-      const qtd  = parseInt(p.qtd) ?? 0;
+      const qtd   = parseInt(p.qtd) ?? 0;
       const baixo = qtd < 5;
-      // Banco usa "produto", não "nome"
-      const nome = p.produto || p.nome || '—';
+      const nome  = p.produto || p.nome || '—';
+
+      // Imagem vem como URL completa do Cloudinary — usa diretamente como src.
+      // onerror usa função nomeada para evitar quebra de HTML com SVG inline.
       const thumb = p.imagem
-        ? `<img src="${p.imagem}" alt="${esc(nome)}" class="product-thumb" loading="lazy" onerror="this.outerHTML='<div class=no-thumb>${SVG_PACKAGE}</div>'">`
+        ? `<img src="${p.imagem}" alt="${esc(nome)}" class="product-thumb" loading="lazy" onerror="Estoque.imgError(this)">`
         : `<div class="no-thumb">${SVG_PACKAGE}</div>`;
+
       return `
         <tr class="table-row" data-id="${p.id}">
           <td class="td-thumb">${thumb}</td>
@@ -91,6 +94,17 @@ const Estoque = (() => {
           </td>
         </tr>`;
     }).join(''));
+  }
+
+  /**
+   * Fallback para imagem quebrada — substitui o <img> por ícone SVG.
+   * Função separada para evitar aspas duplas do SVG dentro do atributo onerror.
+   */
+  function imgError(img) {
+    const div = document.createElement('div');
+    div.className = 'no-thumb';
+    div.innerHTML = SVG_PACKAGE;
+    img.replaceWith(div);
   }
 
   function filter(query) {
@@ -134,11 +148,11 @@ const Estoque = (() => {
             </div>
             <div class="form-group ${p ? 'field-readonly' : ''}">
               <label>Linha</label>
-              <input type="text" id="mProdLinha" class="input-field" value="${esc(linha)}" ${ro} placeholder="Ex: Smart">
+              <input type="text" id="mProdLinha" class="input-field" value="${esc(linha)}" ${ro} placeholder="Ex: AQUECER">
             </div>
             <div class="form-group ${p ? 'field-readonly' : ''}">
               <label>Litros</label>
-              <input type="text" id="mProdLitros" class="input-field" value="${esc(litros)}" ${ro} placeholder="Ex: 1.4">
+              <input type="text" id="mProdLitros" class="input-field" value="${esc(litros)}" ${ro} placeholder="Ex: 1.5L">
             </div>
             <div class="form-group ${p ? 'field-readonly' : ''}">
               <label>Cores</label>
@@ -153,19 +167,21 @@ const Estoque = (() => {
               <input type="number" id="mProdValor" class="input-field" value="${valor}" min="0" step="0.01" placeholder="0,00">
             </div>
           </div>
+
           <div class="form-group mt-8">
             <label>Imagem do Produto</label>
+            ${img ? `<div style="margin-bottom:.75rem"><img src="${img}" style="height:80px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" onerror="this.style.display='none'"></div>` : ''}
             <div class="image-upload-area" id="imageUploadArea" onclick="document.getElementById('mProdImagem').click()">
-              ${img
-                ? `<img src="${img}" class="image-preview" id="imagePreview" alt="Imagem atual">`
-                : `<div class="image-placeholder" id="imagePreview">
-                     ${SVG_IMAGE}
-                     <span>Clique para selecionar</span>
-                   </div>`}
+              <div class="image-placeholder" id="imagePreview">
+                ${SVG_IMAGE_PLACEHOLDER}
+                <span>${img ? 'Clique para trocar a imagem' : 'Clique para selecionar'}</span>
+              </div>
               <input type="file" id="mProdImagem" accept="image/*" class="input-file" onchange="Estoque.previewImage(this)">
             </div>
+            <span class="field-hint">Upload direto para o Cloudinary. Formatos: JPG, PNG, WEBP.</span>
           </div>
-          ${p ? '<p class="field-hint">Somente Quantidade e Valor podem ser editados.</p>' : ''}
+
+          ${p ? '<p class="field-hint mt-8">Somente Quantidade, Valor e Imagem podem ser editados.</p>' : ''}
         </div>
         <div class="modal-footer">
           <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
@@ -183,11 +199,7 @@ const Estoque = (() => {
     reader.onload = (e) => {
       const area = document.getElementById('imagePreview');
       if (!area) return;
-      if (area.tagName === 'IMG') {
-        area.src = e.target.result;
-      } else {
-        area.outerHTML = `<img src="${e.target.result}" class="image-preview" id="imagePreview" alt="Preview">`;
-      }
+      area.innerHTML = `<img src="${e.target.result}" style="max-height:120px;border-radius:6px;object-fit:contain" alt="Preview">`;
     };
     reader.readAsDataURL(input.files[0]);
   }
@@ -202,17 +214,21 @@ const Estoque = (() => {
     const btn = document.getElementById('btnSaveEstoque');
     if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
 
+    // Upload para Cloudinary via API
     let imagemUrl = null;
     const fileInput = document.getElementById('mProdImagem');
     if (fileInput?.files?.[0]) {
+      if (btn) btn.textContent = 'Enviando imagem…';
       try {
         const fd = new FormData();
         fd.append('file', fileInput.files[0]);
         const res = await API.uploadImagem(fd);
-        imagemUrl = res?.url || res?.imageUrl || res?.path || null;
+        // API retorna { url, publicId }
+        imagemUrl = res?.url || null;
+        if (!imagemUrl) throw new Error('URL não retornada pelo servidor.');
       } catch (err) {
         showToast('Erro no upload da imagem: ' + err.message, 'error');
-        if (btn) { btn.disabled = false; btn.textContent = 'Salvar Alterações'; }
+        if (btn) { btn.disabled = false; btn.textContent = _editingId ? 'Salvar Alterações' : 'Criar Produto'; }
         return;
       }
     }
@@ -229,7 +245,6 @@ const Estoque = (() => {
       } else {
         const nomeProd = document.getElementById('mProdNome')?.value.trim();
         if (!nomeProd) { showToast('Nome é obrigatório.', 'warning'); return; }
-        // Banco usa coluna "produto"
         dados.produto = nomeProd;
         dados.linha   = document.getElementById('mProdLinha')?.value.trim();
         dados.litros  = document.getElementById('mProdLitros')?.value.trim();
@@ -247,7 +262,7 @@ const Estoque = (() => {
   }
 
   function deleteItem(id) {
-    const p = _data.find(x => String(x.id) === String(id));
+    const p    = _data.find(x => String(x.id) === String(id));
     const nome = p?.produto || p?.nome || 'este produto';
     confirmAction(
       `Excluir <strong>${esc(nome)}</strong>? Esta ação não pode ser desfeita.`,
@@ -278,7 +293,7 @@ const Estoque = (() => {
       .replace(/"/g, '&quot;');
   }
 
-  return { init, load, openEditModal, previewImage, save, deleteItem };
+  return { init, load, openEditModal, previewImage, save, deleteItem, imgError };
 })();
 
 window.Estoque = Estoque;
