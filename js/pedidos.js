@@ -118,19 +118,17 @@ const Pedidos = (() => {
     const nextEtapa = getNextEtapa(p.etapa);
     const nextLabel = nextEtapa ? (ETAPA_LABEL[nextEtapa]?.label || nextEtapa) : null;
 
-    // Itens: campo "pedido" (Json) com estrutura [{id, qty, name, price, ...}]
+    // Campo "pedido" (Json) — itens do carrinho
+    // Estrutura: { id: string, descricao, cores, imagem, valor, quantity, ... }
     const itens = Array.isArray(p.pedido) ? p.pedido : [];
+
     const itensHtml = itens.length
-      ? `<ul class="order-items">${itens.map(i => {
-          const nome  = i.name  || i.nome  || i.produto || '—';
-          const qty   = i.qty   || i.qtd   || i.quantidade || 1;
-          const preco = i.price || i.valor || i.preco || 0;
-          return `<li class="order-item">
-            <span class="item-name">${esc(nome)}</span>
-            <span class="item-qty">x${qty}</span>
-            <span class="item-price">${formatCurrency(preco)}</span>
-          </li>`;
-        }).join('')}</ul>`
+      ? `<ul class="order-items">${itens.map(i => `
+          <li class="order-item">
+            <span class="item-name">${esc(i.descricao)}</span>
+            <span class="item-qty">x${i.quantity}</span>
+            <span class="item-price">${formatCurrency(parseFloat(i.valor) * i.quantity)}</span>
+          </li>`).join('')}</ul>`
       : '<p class="td-muted" style="font-size:.85rem">Sem itens detalhados.</p>';
 
     const podeDevolucao = p.etapa !== 'CANCELADO';
@@ -150,9 +148,9 @@ const Pedidos = (() => {
         ${itensHtml}
         <div class="detail-grid mt-8">
           <div class="detail-row"><span>Frete</span><strong>${formatCurrency(p.frete)}</strong></div>
-          ${p.cupom    ? `<div class="detail-row"><span>Cupom</span><strong>${esc(p.cupom)}</strong></div>` : ''}
+          ${p.cupom      ? `<div class="detail-row"><span>Cupom</span><strong>${esc(p.cupom)}</strong></div>` : ''}
           ${p.parcelas && p.parcelas > 1 ? `<div class="detail-row"><span>Parcelas</span><strong>${p.parcelas}x</strong></div>` : ''}
-          ${p.trocoPara ? `<div class="detail-row"><span>Troco p/</span><strong>${formatCurrency(p.trocoPara)}</strong></div>` : ''}
+          ${p.trocoPara  ? `<div class="detail-row"><span>Troco p/</span><strong>${formatCurrency(p.trocoPara)}</strong></div>` : ''}
           <div class="detail-row total-row"><span>Total</span><strong>${formatCurrency(p.totalVenda)}</strong></div>
         </div>
       </div>
@@ -213,7 +211,6 @@ const Pedidos = (() => {
     const proximo = getNextEtapa(etapaAtual);
     if (!proximo) return;
     const label = ETAPA_LABEL[proximo]?.label || proximo;
-
     if (proximo === 'CANCELADO') {
       confirmAction(
         `Tem certeza que deseja <strong>cancelar</strong> este pedido?`,
@@ -256,21 +253,15 @@ const Pedidos = (() => {
     }
   }
 
-  /**
-   * Devolução — restaura o estoque de cada item e cancela o pedido.
-   * Chama POST /api/pedidos/:id/devolucao no backend.
-   */
   function devolucao(id) {
     const p     = _data.find(x => String(x.id) === String(id));
     const itens = Array.isArray(p?.pedido) ? p.pedido : [];
 
     const listaHtml = itens.length
       ? `<ul style="margin:.6rem 0 0;padding-left:1.25rem;font-size:.85rem;color:var(--text-muted);line-height:1.8">
-           ${itens.map(i => {
-             const nome = i.name || i.nome || i.produto || '?';
-             const qty  = i.qty  || i.qtd  || i.quantidade || 1;
-             return `<li>${esc(nome)} — <strong>x${qty}</strong></li>`;
-           }).join('')}
+           ${itens.map(i =>
+             `<li>${esc(i.descricao)} — <strong>x${i.quantity}</strong></li>`
+           ).join('')}
          </ul>`
       : '';
 
@@ -296,7 +287,6 @@ const Pedidos = (() => {
     );
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   function setBody(html) {
     const el = document.getElementById('pedidosTableBody');
     if (el) el.innerHTML = html;
