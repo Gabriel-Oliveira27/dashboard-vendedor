@@ -1,5 +1,11 @@
 'use strict';
-
+/**
+ * pedidos.js — Módulo de Pedidos
+ *
+ * Estrutura real do item em pedido.pedido (Json) — montada em checkout/page.jsx:
+ *   { id: string, descricao: string, cores: string, qty: number }
+ *   Nota: valor NÃO é armazenado nos itens do pedido.
+ */
 
 const SVG_RETURN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
   <polyline points="1 4 1 10 7 10"/>
@@ -12,12 +18,8 @@ const Pedidos = (() => {
   let _activePedido = null;
 
   const ETAPA_SEQUENCE = [
-    'RESERVADO',
-    'CONFIRMADO',
-    'EM_PREPARO',
-    'SAIU_PARA_ENTREGA',
-    'ENTREGUE',
-    'CANCELADO',
+    'RESERVADO', 'CONFIRMADO', 'EM_PREPARO',
+    'SAIU_PARA_ENTREGA', 'ENTREGUE', 'CANCELADO',
   ];
 
   const ETAPA_LABEL = {
@@ -29,7 +31,6 @@ const Pedidos = (() => {
     CANCELADO:         { label: 'Cancelado',        class: 'badge-red'    },
   };
 
-  // ── Init ──────────────────────────────────────────────────────────────────
   function init() {
     if (!_initialized) {
       _initialized = true;
@@ -41,7 +42,6 @@ const Pedidos = (() => {
     if (_data.length === 0) load();
   }
 
-  // ── Load ──────────────────────────────────────────────────────────────────
   async function load() {
     renderSkeleton();
     try {
@@ -54,21 +54,16 @@ const Pedidos = (() => {
     }
   }
 
-  // ── Filters ───────────────────────────────────────────────────────────────
   function applyFilters() {
     const etapa     = document.getElementById('filterEtapa')?.value     || '';
     const pagamento = document.getElementById('filterPagamento')?.value || '';
-    const filtered  = _data.filter(p =>
+    render(_data.filter(p =>
       (!etapa     || p.etapa     === etapa)     &&
       (!pagamento || p.pagamento === pagamento)
-    );
-    render(filtered);
+    ));
   }
 
-  // ── Render table ──────────────────────────────────────────────────────────
-  function renderSkeleton() {
-    setBody(createSkeletonRows(6, 7));
-  }
+  function renderSkeleton() { setBody(createSkeletonRows(6, 7)); }
 
   function render(data) {
     if (!data.length) {
@@ -85,17 +80,12 @@ const Pedidos = (() => {
           <td class="font-medium">${formatCurrency(p.totalVenda)}</td>
           <td class="td-muted">${esc(p.metodoPagamento)}</td>
           <td><span class="badge ${et.class}">${et.label}</span></td>
-          <td>
-            <span class="badge ${pago ? 'badge-green' : 'badge-yellow'}">
-              ${pago ? 'Realizado' : 'Pendente'}
-            </span>
-          </td>
+          <td><span class="badge ${pago ? 'badge-green' : 'badge-yellow'}">${pago ? 'Realizado' : 'Pendente'}</span></td>
           <td class="td-muted td-date">${formatDate(p.dataCompra)}</td>
         </tr>`;
     }).join(''));
   }
 
-  // ── Detail panel ──────────────────────────────────────────────────────────
   function openPanel(id) {
     _activePedido = _data.find(p => String(p.id) === String(id));
     if (!_activePedido) return;
@@ -115,23 +105,21 @@ const Pedidos = (() => {
   function renderPanel(p) {
     const et        = ETAPA_LABEL[p.etapa] || { label: p.etapa, class: 'badge-gray' };
     const pago      = p.pagamento === 'REALIZADO';
+    const cancelado = p.etapa === 'CANCELADO';
     const nextEtapa = getNextEtapa(p.etapa);
     const nextLabel = nextEtapa ? (ETAPA_LABEL[nextEtapa]?.label || nextEtapa) : null;
 
-    // Campo "pedido" (Json) — itens do carrinho
-    // Estrutura: { id: string, descricao, cores, imagem, valor, quantity, ... }
+    // Itens: { id: string, descricao, cores, qty }
+    // "valor" NÃO é armazenado no payload do pedido
     const itens = Array.isArray(p.pedido) ? p.pedido : [];
-
     const itensHtml = itens.length
       ? `<ul class="order-items">${itens.map(i => `
           <li class="order-item">
             <span class="item-name">${esc(i.descricao)}</span>
-            <span class="item-qty">x${i.quantity}</span>
-            <span class="item-price">${formatCurrency(parseFloat(i.valor) * i.quantity)}</span>
+            ${i.cores ? `<span class="item-qty" style="color:var(--text-dim)">${esc(i.cores)}</span>` : ''}
+            <span class="item-qty">x${i.qty}</span>
           </li>`).join('')}</ul>`
       : '<p class="td-muted" style="font-size:.85rem">Sem itens detalhados.</p>';
-
-    const podeDevolucao = p.etapa !== 'CANCELADO';
 
     document.getElementById('panelBody').innerHTML = `
       <div class="panel-section">
@@ -147,6 +135,7 @@ const Pedidos = (() => {
         <h4>Pedido <code class="code-sm">${esc(p.idRastreio || p.id)}</code></h4>
         ${itensHtml}
         <div class="detail-grid mt-8">
+          <div class="detail-row"><span>Subtotal</span><strong>${formatCurrency(p.subtotal)}</strong></div>
           <div class="detail-row"><span>Frete</span><strong>${formatCurrency(p.frete)}</strong></div>
           ${p.cupom      ? `<div class="detail-row"><span>Cupom</span><strong>${esc(p.cupom)}</strong></div>` : ''}
           ${p.parcelas && p.parcelas > 1 ? `<div class="detail-row"><span>Parcelas</span><strong>${p.parcelas}x</strong></div>` : ''}
@@ -166,41 +155,38 @@ const Pedidos = (() => {
             <span>Pagamento</span>
             <strong><span class="badge ${pago ? 'badge-green' : 'badge-yellow'}">${pago ? 'Realizado' : 'Pendente'}</span></strong>
           </div>
-          <div class="detail-row">
-            <span>Método</span>
-            <strong>${esc(p.metodoPagamento || '—')}</strong>
-          </div>
-          <div class="detail-row">
-            <span>Data</span>
-            <strong>${formatDate(p.dataCompra)}</strong>
-          </div>
+          <div class="detail-row"><span>Método</span><strong>${esc(p.metodoPagamento || '—')}</strong></div>
+          <div class="detail-row"><span>Data</span><strong>${formatDate(p.dataCompra)}</strong></div>
         </div>
       </div>
 
       <div class="panel-actions">
-        ${nextLabel
-          ? `<button class="btn btn-primary btn-full" onclick="Pedidos.advanceEtapa('${p.id}', '${p.etapa}')">
-               Avançar para ${nextLabel}
-             </button>`
-          : '<button class="btn btn-ghost btn-full" disabled>Etapa final</button>'}
+        ${cancelado
+          ? `<div style="text-align:center;padding:.5rem;font-size:.85rem;color:var(--text-dim)">
+               Pedido cancelado — nenhuma ação disponível.
+             </div>`
+          : `
+            ${nextLabel
+              ? `<button class="btn btn-primary btn-full" onclick="Pedidos.advanceEtapa('${p.id}', '${p.etapa}')">
+                   Avançar para ${nextLabel}
+                 </button>`
+              : '<button class="btn btn-ghost btn-full" disabled>Etapa final</button>'}
 
-        ${!pago
-          ? `<button class="btn btn-success btn-full" onclick="Pedidos.markAsPaid('${p.id}')">
-               Marcar como Pago
-             </button>`
-          : '<button class="btn btn-ghost btn-full" disabled>Pagamento Confirmado</button>'}
+            ${!pago
+              ? `<button class="btn btn-success btn-full" onclick="Pedidos.markAsPaid('${p.id}')">
+                   Marcar como Pago
+                 </button>`
+              : '<button class="btn btn-ghost btn-full" disabled>Pagamento Confirmado</button>'}
 
-        ${podeDevolucao
-          ? `<button class="btn btn-danger btn-full" onclick="Pedidos.devolucao('${p.id}')">
-               ${SVG_RETURN}
-               Registrar Devolução
-             </button>`
-          : ''}
+            <button class="btn btn-danger btn-full" onclick="Pedidos.devolucao('${p.id}')">
+              ${SVG_RETURN}
+              Registrar Devolução
+            </button>`
+        }
       </div>
     `;
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
   function getNextEtapa(etapa) {
     const idx = ETAPA_SEQUENCE.indexOf(etapa);
     if (idx === -1 || idx >= ETAPA_SEQUENCE.length - 2) return null;
@@ -227,14 +213,9 @@ const Pedidos = (() => {
       const p = _data.find(x => String(x.id) === String(id));
       if (p) p.etapa = novaEtapa;
       applyFilters();
-      if (_activePedido?.id == id) {
-        _activePedido.etapa = novaEtapa;
-        renderPanel(_activePedido);
-      }
+      if (_activePedido?.id == id) { _activePedido.etapa = novaEtapa; renderPanel(_activePedido); }
       showToast(`Etapa avançada para "${label}".`, 'success');
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
+    } catch (err) { showToast(err.message, 'error'); }
   }
 
   async function markAsPaid(id) {
@@ -243,14 +224,9 @@ const Pedidos = (() => {
       const p = _data.find(x => String(x.id) === String(id));
       if (p) p.pagamento = 'REALIZADO';
       applyFilters();
-      if (_activePedido?.id == id) {
-        _activePedido.pagamento = 'REALIZADO';
-        renderPanel(_activePedido);
-      }
+      if (_activePedido?.id == id) { _activePedido.pagamento = 'REALIZADO'; renderPanel(_activePedido); }
       showToast('Pagamento confirmado!', 'success');
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
+    } catch (err) { showToast(err.message, 'error'); }
   }
 
   function devolucao(id) {
@@ -259,30 +235,22 @@ const Pedidos = (() => {
 
     const listaHtml = itens.length
       ? `<ul style="margin:.6rem 0 0;padding-left:1.25rem;font-size:.85rem;color:var(--text-muted);line-height:1.8">
-           ${itens.map(i =>
-             `<li>${esc(i.descricao)} — <strong>x${i.quantity}</strong></li>`
-           ).join('')}
+           ${itens.map(i => `<li>${esc(i.descricao)} — <strong>x${i.qty}</strong></li>`).join('')}
          </ul>`
       : '';
 
     confirmAction(
       `Registrar <strong>devolução</strong> deste pedido?<br>
-       O estoque dos produtos será restaurado automaticamente.
-       ${listaHtml}`,
+       O estoque de cada produto será restaurado automaticamente.${listaHtml}`,
       async () => {
         try {
           await API.devolucao(id);
           const pedido = _data.find(x => String(x.id) === String(id));
           if (pedido) pedido.etapa = 'CANCELADO';
           applyFilters();
-          if (_activePedido?.id == id) {
-            _activePedido.etapa = 'CANCELADO';
-            renderPanel(_activePedido);
-          }
+          if (_activePedido?.id == id) { _activePedido.etapa = 'CANCELADO'; renderPanel(_activePedido); }
           showToast('Devolução registrada e estoque restaurado.', 'success');
-        } catch (err) {
-          showToast(err.message, 'error');
-        }
+        } catch (err) { showToast(err.message, 'error'); }
       }
     );
   }
@@ -293,12 +261,8 @@ const Pedidos = (() => {
   }
 
   function esc(str) {
-    return (str || '—')
-      .toString()
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return (str || '—').toString()
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   return { init, load, openPanel, closePanel, advanceEtapa, markAsPaid, devolucao };

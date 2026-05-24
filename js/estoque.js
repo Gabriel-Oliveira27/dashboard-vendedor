@@ -1,43 +1,113 @@
 'use strict';
 /**
  * estoque.js — Módulo de Estoque
- * Banco: "produto", imagem vem como URL completa (Cloudinary)
+ * - Hover 3s na foto → amplia a imagem
+ * - Botão olho → preview do card como aparece na loja
  */
 
-const SVG_PACKAGE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
-  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-  <line x1="12" y1="22.08" x2="12" y2="12"/>
-</svg>`;
+const SVG_PACKAGE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
+const SVG_EDIT    = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const SVG_TRASH   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+const SVG_EYE     = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const SVG_IMG_PH  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+const SVG_CLOSE   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
-const SVG_EDIT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-</svg>`;
+// ── Injecta estilos do zoom ────────────────────────────────────────────────
+(function injectStyles() {
+  const id = 'estoque-zoom-styles';
+  if (document.getElementById(id)) return;
+  const s = document.createElement('style');
+  s.id = id;
+  s.textContent = `
+    #estoqueZoomOverlay {
+      position:fixed;z-index:9000;pointer-events:none;
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:14px;padding:6px;
+      box-shadow:0 12px 48px rgba(0,0,0,.55);
+      opacity:0;transform:scale(.94);
+      transition:opacity .22s,transform .22s;
+    }
+    #estoqueZoomOverlay.visible { opacity:1;transform:scale(1); }
+    #estoqueZoomOverlay img { display:block;width:240px;height:240px;object-fit:contain;border-radius:8px; }
+    .estoque-preview-card {
+      background:#1a1a24;border:1px solid #2a2a38;border-radius:16px;overflow:hidden;
+      font-family:'Outfit',system-ui,sans-serif;width:240px;
+    }
+    html[data-theme="light"] .estoque-preview-card { background:#fff;border-color:#d8d8e8; }
+    .estoque-preview-img { width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#0f0f13; }
+    html[data-theme="light"] .estoque-preview-img { background:#f2f2f8; }
+    .estoque-preview-body { padding:.85rem; }
+    .estoque-preview-name { font-weight:600;color:var(--text);margin-bottom:.2rem;font-size:.9rem;line-height:1.3; }
+    .estoque-preview-sub  { font-size:.75rem;color:var(--text-muted);margin-bottom:.4rem; }
+    .estoque-preview-price{ color:#7c3aed;font-weight:700;font-size:1.05rem;margin-bottom:.3rem; }
+    .estoque-preview-stock{ font-size:.75rem;color:var(--text-muted);margin-bottom:.65rem; }
+    .estoque-preview-btn  {
+      background:#7c3aed;color:#fff;border-radius:8px;padding:.45rem;
+      text-align:center;font-size:.82rem;font-weight:600;opacity:.55;
+      cursor:not-allowed;
+    }
+  `;
+  document.head.appendChild(s);
+})();
 
-const SVG_TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-  <polyline points="3 6 5 6 21 6"/>
-  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-  <path d="M10 11v6M14 11v6"/>
-  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-</svg>`;
+// ── Zoom overlay singleton ─────────────────────────────────────────────────
+let _zoomEl   = null;
+let _zoomTimer = null;
 
-const SVG_IMAGE_PLACEHOLDER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
-  <rect x="3" y="3" width="18" height="18" rx="2"/>
-  <circle cx="8.5" cy="8.5" r="1.5"/>
-  <polyline points="21 15 16 10 5 21"/>
-</svg>`;
+function _getZoomEl() {
+  if (!_zoomEl) {
+    _zoomEl = document.createElement('div');
+    _zoomEl.id = 'estoqueZoomOverlay';
+    _zoomEl.innerHTML = '<img alt="">';
+    document.body.appendChild(_zoomEl);
+  }
+  return _zoomEl;
+}
 
+function _showZoom(triggerEl, src) {
+  const el  = _getZoomEl();
+  el.querySelector('img').src = src;
+
+  // Posiciona ao lado da célula
+  const rect = triggerEl.getBoundingClientRect();
+  let   left = rect.right + 12;
+  let   top  = rect.top;
+
+  if (left + 260 > window.innerWidth)  left = rect.left - 260;
+  if (top  + 260 > window.innerHeight) top  = window.innerHeight - 260;
+
+  el.style.left = `${Math.max(8, left)}px`;
+  el.style.top  = `${Math.max(8, top)}px`;
+  el.classList.add('visible');
+}
+
+function _hideZoom() {
+  clearTimeout(_zoomTimer);
+  _zoomEl?.classList.remove('visible');
+}
+
+// Chamados pelo onerror/onmouseenter inline
+function _hoverStart(el, src) {
+  clearTimeout(_zoomTimer);
+  _zoomTimer = setTimeout(() => _showZoom(el, src), 3000);
+}
+
+function _hoverEnd() {
+  clearTimeout(_zoomTimer);
+  _hideZoom();
+}
+
+// ── Módulo ────────────────────────────────────────────────────────────────
 const Estoque = (() => {
-  let _data = [];
+  let _data        = [];
   let _initialized = false;
-  let _editingId = null;
+  let _editingId   = null;
 
   function init() {
     if (!_initialized) {
       _initialized = true;
       document.getElementById('estoqueSearch')
-        ?.addEventListener('input', (e) => filter(e.target.value));
+        ?.addEventListener('input', e => filter(e.target.value));
       document.getElementById('btnNewProduto')
         ?.addEventListener('click', () => openEditModal(null));
     }
@@ -57,9 +127,7 @@ const Estoque = (() => {
     }
   }
 
-  function renderSkeleton() {
-    setBody(createSkeletonRows(7, 8));
-  }
+  function renderSkeleton() { setBody(createSkeletonRows(7, 8)); }
 
   function render(data) {
     if (!data.length) {
@@ -71,10 +139,20 @@ const Estoque = (() => {
       const baixo = qtd < 5;
       const nome  = p.produto || p.nome || '—';
 
-      // Imagem vem como URL completa do Cloudinary — usa diretamente como src.
-      // onerror usa função nomeada para evitar quebra de HTML com SVG inline.
+      // Imagem: URL completa do Cloudinary
+      // onerror usa função nomeada (evita aspas duplas do SVG quebrando o atributo)
+      // onmouseenter/leave: hover 3s para zoom
       const thumb = p.imagem
-        ? `<img src="${p.imagem}" alt="${esc(nome)}" class="product-thumb" loading="lazy" onerror="Estoque.imgError(this)">`
+        ? `<img
+             src="${p.imagem}"
+             alt="${esc(nome)}"
+             class="product-thumb"
+             loading="lazy"
+             onerror="Estoque.imgError(this)"
+             onmouseenter="Estoque._hoverStart(this,'${p.imagem}')"
+             onmouseleave="Estoque._hoverEnd()"
+             style="cursor:zoom-in"
+           >`
         : `<div class="no-thumb">${SVG_PACKAGE}</div>`;
 
       return `
@@ -84,11 +162,10 @@ const Estoque = (() => {
           <td class="td-muted">${esc(p.linha)}</td>
           <td class="td-muted">${p.litros || '—'}</td>
           <td class="td-muted">${esc(p.cores)}</td>
-          <td>
-            <span class="badge ${baixo ? 'badge-red' : 'badge-green'}">${qtd}</span>
-          </td>
+          <td><span class="badge ${baixo ? 'badge-red' : 'badge-green'}">${qtd}</span></td>
           <td class="font-medium">${formatCurrency(p.valor)}</td>
           <td class="actions-cell">
+            <button class="btn-icon" onclick="Estoque.previewCard('${p.id}')" title="Ver card da loja">${SVG_EYE}</button>
             <button class="btn-icon" onclick="Estoque.openEditModal('${p.id}')" title="Editar">${SVG_EDIT}</button>
             <button class="btn-icon btn-danger-icon" onclick="Estoque.deleteItem('${p.id}')" title="Excluir">${SVG_TRASH}</button>
           </td>
@@ -96,15 +173,55 @@ const Estoque = (() => {
     }).join(''));
   }
 
-  /**
-   * Fallback para imagem quebrada — substitui o <img> por ícone SVG.
-   * Função separada para evitar aspas duplas do SVG dentro do atributo onerror.
-   */
+  /** Fallback imagem quebrada — função separada para evitar SVG inline no onerror */
   function imgError(img) {
+    _hideZoom();
     const div = document.createElement('div');
     div.className = 'no-thumb';
     div.innerHTML = SVG_PACKAGE;
     img.replaceWith(div);
+  }
+
+  /** Preview do card como aparece na loja */
+  function previewCard(id) {
+    const p    = _data.find(x => String(x.id) === String(id));
+    if (!p) return;
+    const nome  = p.produto || p.nome || '—';
+    const preco = parseFloat(p.valor) || 0;
+    const qtd   = parseInt(p.qtd) || 0;
+    const sub   = [p.linha, p.litros].filter(Boolean).join(' · ');
+
+    const imgHtml = p.imagem
+      ? `<img src="${p.imagem}" class="estoque-preview-img" alt="${esc(nome)}" onerror="this.style.display='none'">`
+      : `<div class="estoque-preview-img" style="display:flex;align-items:center;justify-content:center;color:#55556a">${SVG_PACKAGE}</div>`;
+
+    const stockBadge = qtd <= 5
+      ? `<span style="background:rgba(239,68,68,.85);color:#fff;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:100px;position:absolute;top:8px;left:8px">Últimas unidades</span>`
+      : '';
+
+    openModal(`
+      <div class="modal-card" style="max-width:280px">
+        <div class="modal-header">
+          <h3 style="font-size:.9rem">Preview — Card da Loja</h3>
+          <button class="btn-icon" onclick="closeModal()" aria-label="Fechar">${SVG_CLOSE}</button>
+        </div>
+        <div class="modal-body" style="padding:1.25rem;align-items:center">
+          <div class="estoque-preview-card">
+            <div style="position:relative">${imgHtml}${stockBadge}</div>
+            <div class="estoque-preview-body">
+              <div class="estoque-preview-name">${esc(nome)}</div>
+              ${sub ? `<div class="estoque-preview-sub">${esc(sub)}</div>` : ''}
+              <div class="estoque-preview-price">R$ ${preco.toFixed(2)}</div>
+              <div class="estoque-preview-stock">${qtd} em estoque</div>
+              <div class="estoque-preview-btn">Adicionar ao Carrinho</div>
+            </div>
+          </div>
+          <p style="font-size:.72rem;color:var(--text-dim);margin-top:.75rem;text-align:center">
+            Visualização aproximada — cores podem variar pelo tema da loja.
+          </p>
+        </div>
+      </div>
+    `);
   }
 
   function filter(query) {
@@ -118,27 +235,17 @@ const Estoque = (() => {
   }
 
   function openEditModal(id) {
-    const p = id ? _data.find(x => String(x.id) === String(id)) : null;
-    _editingId = id || null;
-
+    const p      = id ? _data.find(x => String(x.id) === String(id)) : null;
+    _editingId   = id || null;
     const ro     = p ? 'readonly' : '';
     const nome   = p?.produto || p?.nome || '';
-    const linha  = p?.linha   || '';
-    const litros = p?.litros  || '';
-    const cores  = p?.cores   || '';
-    const qtd    = p?.qtd  ?? '';
-    const valor  = p?.valor ?? '';
     const img    = p?.imagem || '';
 
     openModal(`
       <div class="modal-card">
         <div class="modal-header">
           <h3>${p ? 'Editar Produto' : 'Novo Produto'}</h3>
-          <button class="btn-icon" onclick="closeModal()" aria-label="Fechar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+          <button class="btn-icon" onclick="closeModal()" aria-label="Fechar">${SVG_CLOSE}</button>
         </div>
         <div class="modal-body">
           <div class="form-grid-2">
@@ -148,37 +255,37 @@ const Estoque = (() => {
             </div>
             <div class="form-group ${p ? 'field-readonly' : ''}">
               <label>Linha</label>
-              <input type="text" id="mProdLinha" class="input-field" value="${esc(linha)}" ${ro} placeholder="Ex: AQUECER">
+              <input type="text" id="mProdLinha" class="input-field" value="${esc(p?.linha || '')}" ${ro} placeholder="Ex: AQUECER">
             </div>
             <div class="form-group ${p ? 'field-readonly' : ''}">
               <label>Litros</label>
-              <input type="text" id="mProdLitros" class="input-field" value="${esc(litros)}" ${ro} placeholder="Ex: 1.5L">
+              <input type="text" id="mProdLitros" class="input-field" value="${esc(p?.litros || '')}" ${ro} placeholder="Ex: 1.5L">
             </div>
             <div class="form-group ${p ? 'field-readonly' : ''}">
               <label>Cores</label>
-              <input type="text" id="mProdCores" class="input-field" value="${esc(cores)}" ${ro} placeholder="Ex: Azul, Rosa">
+              <input type="text" id="mProdCores" class="input-field" value="${esc(p?.cores || '')}" ${ro} placeholder="Ex: Azul, Rosa">
             </div>
             <div class="form-group">
               <label>Quantidade *</label>
-              <input type="number" id="mProdQtd" class="input-field" value="${qtd}" min="0" placeholder="0">
+              <input type="number" id="mProdQtd" class="input-field" value="${p?.qtd ?? ''}" min="0" placeholder="0">
             </div>
             <div class="form-group">
               <label>Valor (R$) *</label>
-              <input type="number" id="mProdValor" class="input-field" value="${valor}" min="0" step="0.01" placeholder="0,00">
+              <input type="number" id="mProdValor" class="input-field" value="${p?.valor ?? ''}" min="0" step="0.01" placeholder="0,00">
             </div>
           </div>
 
           <div class="form-group mt-8">
             <label>Imagem do Produto</label>
             ${img ? `<div style="margin-bottom:.75rem"><img src="${img}" style="height:80px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" onerror="this.style.display='none'"></div>` : ''}
-            <div class="image-upload-area" id="imageUploadArea" onclick="document.getElementById('mProdImagem').click()">
+            <div class="image-upload-area" onclick="document.getElementById('mProdImagem').click()">
               <div class="image-placeholder" id="imagePreview">
-                ${SVG_IMAGE_PLACEHOLDER}
-                <span>${img ? 'Clique para trocar a imagem' : 'Clique para selecionar'}</span>
+                ${SVG_IMG_PH}
+                <span>${img ? 'Clique para trocar' : 'Clique para selecionar'}</span>
               </div>
               <input type="file" id="mProdImagem" accept="image/*" class="input-file" onchange="Estoque.previewImage(this)">
             </div>
-            <span class="field-hint">Upload direto para o Cloudinary. Formatos: JPG, PNG, WEBP.</span>
+            <span class="field-hint">Upload para o Cloudinary. Formatos: JPG, PNG, WEBP.</span>
           </div>
 
           ${p ? '<p class="field-hint mt-8">Somente Quantidade, Valor e Imagem podem ser editados.</p>' : ''}
@@ -196,10 +303,9 @@ const Estoque = (() => {
   function previewImage(input) {
     if (!input?.files?.[0]) return;
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const area = document.getElementById('imagePreview');
-      if (!area) return;
-      area.innerHTML = `<img src="${e.target.result}" style="max-height:120px;border-radius:6px;object-fit:contain" alt="Preview">`;
+    reader.onload = e => {
+      const el = document.getElementById('imagePreview');
+      if (el) el.innerHTML = `<img src="${e.target.result}" style="max-height:120px;border-radius:6px;object-fit:contain" alt="Preview">`;
     };
     reader.readAsDataURL(input.files[0]);
   }
@@ -207,7 +313,6 @@ const Estoque = (() => {
   async function save() {
     const qtd   = parseInt(document.getElementById('mProdQtd')?.value);
     const valor = parseFloat(document.getElementById('mProdValor')?.value);
-
     if (isNaN(qtd)   || qtd   < 0) { showToast('Quantidade inválida.', 'warning'); return; }
     if (isNaN(valor) || valor < 0) { showToast('Valor inválido.', 'warning');     return; }
 
@@ -223,11 +328,10 @@ const Estoque = (() => {
         const fd = new FormData();
         fd.append('file', fileInput.files[0]);
         const res = await API.uploadImagem(fd);
-        // API retorna { url, publicId }
         imagemUrl = res?.url || null;
         if (!imagemUrl) throw new Error('URL não retornada pelo servidor.');
       } catch (err) {
-        showToast('Erro no upload da imagem: ' + err.message, 'error');
+        showToast('Erro no upload: ' + err.message, 'error');
         if (btn) { btn.disabled = false; btn.textContent = _editingId ? 'Salvar Alterações' : 'Criar Produto'; }
         return;
       }
@@ -250,8 +354,7 @@ const Estoque = (() => {
         dados.litros  = document.getElementById('mProdLitros')?.value.trim();
         dados.cores   = document.getElementById('mProdCores')?.value.trim();
         showToast('Criação de produto em breve!', 'info');
-        closeModal();
-        return;
+        closeModal(); return;
       }
       closeModal();
       render(_data);
@@ -272,9 +375,7 @@ const Estoque = (() => {
           _data = _data.filter(x => String(x.id) !== String(id));
           render(_data);
           showToast('Produto excluído.', 'success');
-        } catch (err) {
-          showToast(err.message, 'error');
-        }
+        } catch (err) { showToast(err.message, 'error'); }
       }
     );
   }
@@ -285,15 +386,17 @@ const Estoque = (() => {
   }
 
   function esc(str) {
-    return (str || '—')
-      .toString()
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return (str || '—').toString()
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  return { init, load, openEditModal, previewImage, save, deleteItem, imgError };
+  return {
+    init, load, openEditModal, previewImage, save, deleteItem, previewCard,
+    imgError, _hoverStart, _hoverEnd,
+  };
 })();
 
 window.Estoque = Estoque;
+// Expõe para handlers inline
+window._estoqueHoverStart = (el, src) => Estoque._hoverStart(el, src);
+window._estoqueHoverEnd   = ()        => Estoque._hoverEnd();
