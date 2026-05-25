@@ -1,84 +1,93 @@
 'use strict';
 /**
- * auth.js — Gerenciamento de autenticação JWT
- * Token armazenado em memória + sessionStorage.
- * NUNCA em localStorage ou cookies legíveis por JS.
+ * auth.js — Autenticação via cookie httpOnly
+ *
+ * O JWT fica em um cookie HttpOnly, Secure, SameSite=None → nunca acessível
+ * por JavaScript. O sessionStorage guarda apenas dados de exibição (nome,
+ * permissoes) que vieram no body do login.
  */
 
-let _memToken = null;
+const USER_KEY = 'sublime_user';
 
 const Auth = {
-  /** Salva token em memória e sessionStorage */
-  setToken(token) {
-    _memToken = token;
-    try { sessionStorage.setItem('jwt', token); } catch (_) {}
+  /** Salva dados do usuário (não o token) */
+  setUser(usuario) {
+    try { sessionStorage.setItem(USER_KEY, JSON.stringify(usuario)); } catch (_) {}
   },
 
-  /** Recupera token da memória ou sessionStorage */
-  getToken() {
-    if (_memToken) return _memToken;
-    try { _memToken = sessionStorage.getItem('jwt'); } catch (_) {}
-    return _memToken;
-  },
-
-  /** Remove token de todos os locais */
-  clearToken() {
-    _memToken = null;
-    try { sessionStorage.removeItem('jwt'); } catch (_) {}
-  },
-
-  /**
-   * Decodifica payload do JWT (base64url → JSON).
-   * Verificação LOCAL — não chama a API.
-   */
-  decodePayload(token) {
+  /** Retorna dados do usuário ou null */
+  getUser() {
     try {
-      const part = token.split('.')[1];
-      // Corrige padding base64url
-      const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = base64 + '=='.slice((base64.length + 3) % 4 || 4);
-      return JSON.parse(atob(padded));
+      const raw = sessionStorage.getItem(USER_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) { return null; }
+  },
+
+  /** Remove dados da sessão */
+  clearUser() {
+    try { sessionStorage.removeItem(USER_KEY); } catch (_) {}
+  },
+
+  /** Verifica se há sessão local */
+  hasSession() {
+    return !!this.getUser();
+  },
+
+  /**
+   * Guard assíncrono para páginas protegidas.
+   * Chama /api/auth/me para validar o cookie no servidor.
+   * Se inválido, redireciona para login.
+   */
+  async requireAuth() {
+    // Se já temos dados locais, confia — o cookie valida automaticamente nas chamadas API
+    if (this.hasSession()) return true;
+
+    // Sem dados locais: tenta recuperar do servidor (ex: após reload)
+    try {
+      const res = await fetch(
+        `${typeof API_BASE !== 'undefined' ? API_BASE : 'https://sublime-react.vercel.app'}/api/auth/me`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) throw new Error('Não autenticado');
+      const { usuario } = await res.json();
+      this.setUser(usuario);
+      return true;
     } catch (_) {
-      return null;
-    }
-  },
-
-  /**
-   * Verifica se o token existe e não está expirado.
-   * Compara Date.now() / 1000 com o campo `exp` do payload.
-   */
-  isTokenValid() {
-    const token = this.getToken();
-    if (!token) return false;
-    const payload = this.decodePayload(token);
-    if (!payload || typeof payload.exp !== 'number') return false;
-    // Margem de 15s para compensar clock skew
-    return Math.floor(Date.now() / 1000) < payload.exp - 15;
-  },
-
-  /**
-   * Guard para páginas protegidas.
-   * Redireciona imediatamente para index.html se token inválido.
-   */
-  requireAuth() {
-    if (!this.isTokenValid()) {
-      this.clearToken();
+      this.clearUser();
       window.location.replace('index.html');
       return false;
     }
-    return true;
   },
 
-  /** Encerra sessão e redireciona para login */
-  logout() {
-    this.clearToken();
+  /** Desloga: chama endpoint de logout (apaga o cookie no servidor) e limpa local */
+  async logout() {
+    try {
+      await fetch(
+        `${typeof API_BASE !== 'undefined' ? API_BASE : 'https://sublime-react.vercel.app'}/api/auth/logout`,
+        { method: 'POST', credentials: 'include' }
+      );
+    } catch (_) {}
+    this.clearUser();
     window.location.replace('index.html');
   },
 
-  /** Retorna dados do usuário extraídos do token */
-  getUserInfo() {
-    const token = this.getToken();
-    if (!token) return null;
-    return this.decodePayload(token);
-  }
+  /** Retorna info do usuário logado */
+  getUserInfo() { return this.getUser(); },
+
+  /** Atalhos de permissão */
+  isAdmin() { return !!this.getUser()?.isAdmin; },
+
+  canView(secao) {
+    const u = this.getUser();
+    if (!u) return false;
+    if (u.isAdmin) return true;
+    return !!(u.permissoes?.[secao]?.ver);
+  },
+
+  canEdit(secao) {
+    const u = this.getUser();
+    if (!u) return false;
+    if (u.isAdmin) return true;
+    return !!(u.permissoes?.[secao]?.editar);
+  },
 };
