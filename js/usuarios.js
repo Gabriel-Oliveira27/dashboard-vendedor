@@ -5,11 +5,11 @@
  */
 
 const SECOES = [
-  { key: 'estoque',  label: 'Estoque'    },
-  { key: 'pedidos',  label: 'Pedidos'    },
-  { key: 'cupons',   label: 'Cupons'     },
-  { key: 'config',   label: 'Config'     },
-  { key: 'usuarios', label: 'Usuários'   },
+  { key: 'estoque',  label: 'Estoque'  },
+  { key: 'pedidos',  label: 'Pedidos'  },
+  { key: 'cupons',   label: 'Cupons'   },
+  { key: 'config',   label: 'Config'   },
+  { key: 'usuarios', label: 'Usuários' },
 ];
 
 const DEFAULT_PERMS = () => Object.fromEntries(
@@ -22,6 +22,7 @@ const Usuarios = (() => {
   const U_EDIT  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
   const U_TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
   const U_CLOSE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  const U_UPLOAD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
 
   let _data        = [];
   let _initialized = false;
@@ -64,13 +65,8 @@ const Usuarios = (() => {
         ? `<img src="${u.foto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid var(--border)" onerror="this.style.display='none'">`
         : `<div style="width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700">${initials}</div>`;
 
-      const role = u.isAdmin
-        ? `<span class="badge badge-purple">Admin</span>`
-        : `<span class="badge badge-gray">Usuário</span>`;
-
-      const status = u.ativo
-        ? `<span class="badge badge-green">Ativo</span>`
-        : `<span class="badge badge-red">Inativo</span>`;
+      const role   = u.isAdmin ? `<span class="badge badge-purple">Admin</span>` : `<span class="badge badge-gray">Usuário</span>`;
+      const status = u.ativo   ? `<span class="badge badge-green">Ativo</span>`  : `<span class="badge badge-red">Inativo</span>`;
 
       const ehEuMesmo = me?.id === u.id;
       const acoes = u.isAdmin
@@ -99,19 +95,15 @@ const Usuarios = (() => {
     }).join(''));
   }
 
-  /** Modal de criação */
-  function openModal_() {
-    showModalForm(null);
-  }
-
+  function openModal_() { showModalForm(null); }
   function openEdit(id) {
     const u = _data.find(x => String(x.id) === String(id));
     if (u) showModalForm(u);
   }
 
   function showModalForm(u) {
-    const isNew   = !u;
-    const perms   = u?.permissoes || DEFAULT_PERMS();
+    const isNew = !u;
+    const perms = u?.permissoes || DEFAULT_PERMS();
 
     openModal(`
       <div class="modal-card" style="max-width:500px">
@@ -142,13 +134,23 @@ const Usuarios = (() => {
             <input type="password" id="uSenha" class="input-field" placeholder="${isNew ? 'Mínimo 6 caracteres' : '••••••'}">
           </div>
 
+          <!-- Foto: upload direto ou URL -->
           <div class="form-group">
-            <label>Foto (URL do Cloudinary)</label>
-            <input type="url" id="uFoto" class="input-field" value="${esc(u?.foto || '')}" placeholder="https://res.cloudinary.com/...">
+            <label>Foto do Usuário</label>
+            ${u?.foto ? `<div id="uFotoPreview" style="margin-bottom:.6rem"><img src="${esc(u.foto)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--accent)" onerror="this.style.display='none'"></div>` : `<div id="uFotoPreview" style="margin-bottom:.6rem;display:none"></div>`}
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <input type="url" id="uFotoUrl" class="input-field" value="${esc(u?.foto || '')}" placeholder="https://res.cloudinary.com/... (ou faça upload abaixo)" style="flex:1">
+              <label class="btn btn-ghost btn-sm" style="cursor:pointer;white-space:nowrap;margin:0">
+                ${U_UPLOAD} Upload
+                <input type="file" id="uFotoFile" accept="image/*" style="display:none" onchange="Usuarios._uploadFoto(this)">
+              </label>
+            </div>
+            <p class="field-hint">Cole o link ou faça upload direto para o Cloudinary.</p>
+            <div id="uFotoUploadStatus" style="font-size:.8rem;color:var(--text-muted);margin-top:.25rem"></div>
           </div>
 
           <!-- Permissões -->
-          <div style="margin-top:.5rem">
+          <div style="margin-top:.25rem">
             <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:.75rem">Permissões de Acesso</div>
             <div style="border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden">
               <div style="display:grid;grid-template-columns:1fr 80px 80px;gap:0;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);padding:.5rem 1rem;background:var(--bg);border-bottom:1px solid var(--border)">
@@ -176,21 +178,57 @@ const Usuarios = (() => {
       </div>
     `);
 
+    // Atualiza preview ao digitar URL manualmente
+    document.getElementById('uFotoUrl')?.addEventListener('input', function() {
+      const preview = document.getElementById('uFotoPreview');
+      if (!preview) return;
+      if (this.value) {
+        preview.innerHTML = `<img src="${this.value}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--accent)" onerror="this.style.display='none'">`;
+        preview.style.display = '';
+      } else {
+        preview.style.display = 'none';
+      }
+    });
+
     // Liga os toggles de permissão
     SECOES.forEach(s => {
       const verEl    = document.getElementById(`perm_${s.key}_ver`);
       const editarEl = document.getElementById(`perm_${s.key}_editar`);
       if (!verEl || !editarEl) return;
-
-      // Editar implica Ver
-      editarEl.addEventListener('change', () => {
-        if (editarEl.checked) verEl.checked = true;
-      });
-      // Desmarcar Ver implica desmarcar Editar
-      verEl.addEventListener('change', () => {
-        if (!verEl.checked) editarEl.checked = false;
-      });
+      editarEl.addEventListener('change', () => { if (editarEl.checked) verEl.checked = true; });
+      verEl.addEventListener('change',    () => { if (!verEl.checked) editarEl.checked = false; });
     });
+  }
+
+  /** Upload da foto para o Cloudinary */
+  async function _uploadFoto(input) {
+    if (!input?.files?.[0]) return;
+    const status = document.getElementById('uFotoUploadStatus');
+    if (status) status.textContent = 'Enviando imagem…';
+
+    try {
+      const fd = new FormData();
+      fd.append('file', input.files[0]);
+      const res = await API.uploadImagem(fd);
+      const url = res?.url || null;
+      if (!url) throw new Error('URL não retornada.');
+
+      // Preenche o campo URL e atualiza o preview
+      const urlInput = document.getElementById('uFotoUrl');
+      if (urlInput) urlInput.value = url;
+
+      const preview = document.getElementById('uFotoPreview');
+      if (preview) {
+        preview.innerHTML = `<img src="${url}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--accent)">`;
+        preview.style.display = '';
+      }
+
+      if (status) status.textContent = 'Upload concluído!';
+      setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+    } catch (err) {
+      if (status) status.textContent = 'Erro: ' + err.message;
+      showToast('Erro no upload da foto: ' + err.message, 'error');
+    }
   }
 
   function permRow(secao, atual) {
@@ -211,14 +249,13 @@ const Usuarios = (() => {
     const apelido = document.getElementById('uApelido')?.value.trim();
     const email   = document.getElementById('uEmail')?.value.trim();
     const senha   = document.getElementById('uSenha')?.value;
-    const foto    = document.getElementById('uFoto')?.value.trim() || null;
+    const foto    = document.getElementById('uFotoUrl')?.value.trim() || null;
     const ativo   = document.getElementById('uAtivo')?.checked ?? true;
     const isNew   = !id;
 
     if (!nome || !apelido || !email) { showToast('Preencha nome, apelido e e-mail.', 'warning'); return; }
     if (isNew && (!senha || senha.length < 6)) { showToast('A senha deve ter pelo menos 6 caracteres.', 'warning'); return; }
 
-    // Lê permissões dos checkboxes
     const permissoes = Object.fromEntries(
       SECOES.map(s => [s.key, {
         ver:    !!(document.getElementById(`perm_${s.key}_ver`)?.checked),
@@ -266,16 +303,13 @@ const Usuarios = (() => {
     );
   }
 
-  function setBody(html) {
-    const el = document.getElementById('usuariosTableBody');
-    if (el) el.innerHTML = html;
-  }
+  function setBody(html) { const el = document.getElementById('usuariosTableBody'); if (el) el.innerHTML = html; }
 
   function esc(s) {
     return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  return { init, load, openEdit, save, desativar };
+  return { init, load, openEdit, save, desativar, _uploadFoto };
 })();
 
 window.Usuarios = Usuarios;

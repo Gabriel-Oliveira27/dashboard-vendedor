@@ -5,6 +5,7 @@
  * Estrutura real do item em pedido.pedido (Json) — montada em checkout/page.jsx:
  *   { id: string, descricao: string, cores: string, qty: number }
  *   Nota: valor NÃO é armazenado nos itens do pedido.
+ *   O preço é buscado do estoque em tempo real ao abrir o painel.
  */
 
 const SVG_RETURN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
@@ -16,6 +17,7 @@ const Pedidos = (() => {
   let _data = [];
   let _initialized = false;
   let _activePedido = null;
+  let _precos = null; // { [estoqueId]: valor } — cache de preços do estoque
 
   const ETAPA_SEQUENCE = [
     'RESERVADO', 'CONFIRMADO', 'EM_PREPARO',
@@ -54,6 +56,19 @@ const Pedidos = (() => {
     }
   }
 
+  /** Busca preços do estoque uma única vez e cacheia */
+  async function carregarPrecos() {
+    if (_precos !== null) return;
+    try {
+      const estoque = await API.getEstoque();
+      _precos = Object.fromEntries(
+        (Array.isArray(estoque) ? estoque : []).map(p => [String(p.id), parseFloat(p.valor) || 0])
+      );
+    } catch (_) {
+      _precos = {};
+    }
+  }
+
   function applyFilters() {
     const etapa     = document.getElementById('filterEtapa')?.value     || '';
     const pagamento = document.getElementById('filterPagamento')?.value || '';
@@ -86,9 +101,13 @@ const Pedidos = (() => {
     }).join(''));
   }
 
-  function openPanel(id) {
+  async function openPanel(id) {
     _activePedido = _data.find(p => String(p.id) === String(id));
     if (!_activePedido) return;
+
+    // Busca preços do estoque antes de renderizar (apenas na primeira vez)
+    await carregarPrecos();
+
     renderPanel(_activePedido);
     document.getElementById('detailPanel').classList.add('open');
     document.getElementById('panelOverlay').classList.add('visible');
@@ -109,16 +128,24 @@ const Pedidos = (() => {
     const nextEtapa = getNextEtapa(p.etapa);
     const nextLabel = nextEtapa ? (ETAPA_LABEL[nextEtapa]?.label || nextEtapa) : null;
 
+    // Permissão de edição para pedidos
+    const podEditar = Auth.isAdmin() || Auth.canEdit('pedidos');
+
     // Itens: { id: string, descricao, cores, qty }
-    // "valor" NÃO é armazenado no payload do pedido
     const itens = Array.isArray(p.pedido) ? p.pedido : [];
     const itensHtml = itens.length
-      ? `<ul class="order-items">${itens.map(i => `
+      ? `<ul class="order-items">${itens.map(i => {
+          // Busca preço do estoque pelo id do item
+          const preco = (_precos && _precos[String(i.id)]) || 0;
+          const total = preco * (i.qty || 1);
+          return `
           <li class="order-item">
             <span class="item-name">${esc(i.descricao)}</span>
             ${i.cores ? `<span class="item-qty" style="color:var(--text-dim)">${esc(i.cores)}</span>` : ''}
             <span class="item-qty">x${i.qty}</span>
-          </li>`).join('')}</ul>`
+            <span class="item-price">${preco > 0 ? formatCurrency(total) : '—'}</span>
+          </li>`;
+        }).join('')}</ul>`
       : '<p class="td-muted" style="font-size:.85rem">Sem itens detalhados.</p>';
 
     document.getElementById('panelBody').innerHTML = `
@@ -165,23 +192,26 @@ const Pedidos = (() => {
           ? `<div style="text-align:center;padding:.5rem;font-size:.85rem;color:var(--text-dim)">
                Pedido cancelado — nenhuma ação disponível.
              </div>`
-          : `
-            ${nextLabel
-              ? `<button class="btn btn-primary btn-full" onclick="Pedidos.advanceEtapa('${p.id}', '${p.etapa}')">
-                   Avançar para ${nextLabel}
-                 </button>`
-              : '<button class="btn btn-ghost btn-full" disabled>Etapa final</button>'}
+          : podEditar
+            ? `
+              ${nextLabel
+                ? `<button class="btn btn-primary btn-full" onclick="Pedidos.advanceEtapa('${p.id}', '${p.etapa}')">
+                     Avançar para ${nextLabel}
+                   </button>`
+                : '<button class="btn btn-ghost btn-full" disabled>Etapa final</button>'}
 
-            ${!pago
-              ? `<button class="btn btn-success btn-full" onclick="Pedidos.markAsPaid('${p.id}')">
-                   Marcar como Pago
-                 </button>`
-              : '<button class="btn btn-ghost btn-full" disabled>Pagamento Confirmado</button>'}
+              ${!pago
+                ? `<button class="btn btn-success btn-full" onclick="Pedidos.markAsPaid('${p.id}')">
+                     Marcar como Pago
+                   </button>`
+                : '<button class="btn btn-ghost btn-full" disabled>Pagamento Confirmado</button>'}
 
-            <button class="btn btn-danger btn-full" onclick="Pedidos.devolucao('${p.id}')">
-              ${SVG_RETURN}
-              Registrar Devolução
-            </button>`
+              <button class="btn btn-danger btn-full" onclick="Pedidos.devolucao('${p.id}')">
+                ${SVG_RETURN} Registrar Devolução
+              </button>`
+            : `<div style="text-align:center;padding:.5rem;font-size:.85rem;color:var(--text-dim)">
+                 Você tem acesso somente de visualização.
+               </div>`
         }
       </div>
     `;
@@ -198,10 +228,7 @@ const Pedidos = (() => {
     if (!proximo) return;
     const label = ETAPA_LABEL[proximo]?.label || proximo;
     if (proximo === 'CANCELADO') {
-      confirmAction(
-        `Tem certeza que deseja <strong>cancelar</strong> este pedido?`,
-        () => doAdvance(id, proximo, label)
-      );
+      confirmAction(`Tem certeza que deseja <strong>cancelar</strong> este pedido?`, () => doAdvance(id, proximo, label));
     } else {
       doAdvance(id, proximo, label);
     }
@@ -255,10 +282,7 @@ const Pedidos = (() => {
     );
   }
 
-  function setBody(html) {
-    const el = document.getElementById('pedidosTableBody');
-    if (el) el.innerHTML = html;
-  }
+  function setBody(html) { const el = document.getElementById('pedidosTableBody'); if (el) el.innerHTML = html; }
 
   function esc(str) {
     return (str || '—').toString()
