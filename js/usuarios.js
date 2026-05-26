@@ -17,6 +17,12 @@ const DEFAULT_PERMS = () => Object.fromEntries(
 );
 
 const Usuarios = (() => {
+  // SVGs locais — evita conflito com constantes globais de outros módulos
+  const U_PLUS  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>`;
+  const U_EDIT  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+  const U_TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+  const U_CLOSE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
   let _data        = [];
   let _initialized = false;
 
@@ -70,8 +76,8 @@ const Usuarios = (() => {
       const acoes = u.isAdmin
         ? `<span class="td-muted" style="font-size:.78rem">—</span>`
         : `<div class="actions-cell">
-             <button class="btn-icon" onclick="Usuarios.openEdit('${u.id}')" title="Editar">${SVG_EDIT_SM}</button>
-             ${!ehEuMesmo ? `<button class="btn-icon btn-danger-icon" onclick="Usuarios.desativar('${u.id}')" title="Desativar">${SVG_TRASH_SM}</button>` : ''}
+             <button class="btn-icon" onclick="Usuarios.openEdit('${u.id}')" title="Editar">${U_EDIT}</button>
+             ${!ehEuMesmo ? `<button class="btn-icon btn-danger-icon" onclick="Usuarios.desativar('${u.id}')" title="Desativar">${U_TRASH}</button>` : ''}
            </div>`;
 
       return `
@@ -111,7 +117,7 @@ const Usuarios = (() => {
       <div class="modal-card" style="max-width:500px">
         <div class="modal-header">
           <h3>${isNew ? 'Novo Usuário' : 'Editar Usuário'}</h3>
-          <button class="btn-icon" onclick="closeModal()" aria-label="Fechar">${SVG_CLOSE}</button>
+          <button class="btn-icon" onclick="closeModal()" aria-label="Fechar">${U_CLOSE}</button>
         </div>
         <div class="modal-body">
 
