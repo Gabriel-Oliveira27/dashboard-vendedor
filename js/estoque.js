@@ -1,7 +1,7 @@
 'use strict';
 /**
  * estoque.js — Módulo de Estoque
- * Criação completa de produtos via POST /api/estoque
+ * Botões de ação só aparecem para quem tem permissão de editar.
  */
 
 const SVG_PACKAGE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
@@ -13,7 +13,6 @@ const SVG_CLOSE   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 
 const LINHAS = ['FREEZER','AQUECER','CONSERVAR','PREPARAR','SERVIR','ARMAZENAR'];
 
-// ── Zoom overlay ──────────────────────────────────────────────────────────────
 (function injectStyles() {
   if (document.getElementById('estoque-styles')) return;
   const s = document.createElement('style'); s.id='estoque-styles';
@@ -49,8 +48,15 @@ const Estoque = (() => {
       document.getElementById('estoqueSearch')?.addEventListener('input', e => filter(e.target.value));
       document.getElementById('btnNewProduto')?.addEventListener('click', () => openEditModal(null));
     }
+    // Esconde botão "+ Produto" se não puder editar
+    const btnNew = document.getElementById('btnNewProduto');
+    if (btnNew) btnNew.style.display = canEdit() ? '' : 'none';
+
     if (_data.length === 0) load();
   }
+
+  // Helpers de permissão
+  const canEdit = () => Auth.isAdmin() || Auth.canEdit('estoque');
 
   async function load() {
     renderSkeleton();
@@ -69,11 +75,20 @@ const Estoque = (() => {
 
   function render(data) {
     if (!data.length) { setBody('<tr><td colspan="8" class="empty-state">Nenhum produto encontrado.</td></tr>'); return; }
+    const podeEditar = canEdit();
     setBody(data.map(p => {
       const qtd=parseInt(p.qtd)??0, baixo=qtd<5, nome=p.produto||p.nome||'—';
       const thumb = p.imagem
         ? `<img src="${p.imagem}" alt="${esc(nome)}" class="product-thumb" loading="lazy" onerror="Estoque.imgError(this)" onmouseenter="Estoque._hoverStart(this,'${p.imagem}')" onmouseleave="Estoque._hoverEnd()" style="cursor:zoom-in">`
         : `<div class="no-thumb">${SVG_PACKAGE}</div>`;
+
+      // Botões de ação condicionais à permissão
+      const acoes = podeEditar
+        ? `<button class="btn-icon" onclick="Estoque.previewCard('${p.id}')" title="Ver card da loja">${SVG_EYE}</button>
+           <button class="btn-icon" onclick="Estoque.openEditModal('${p.id}')" title="Editar">${SVG_EDIT}</button>
+           <button class="btn-icon btn-danger-icon" onclick="Estoque.deleteItem('${p.id}')" title="Excluir">${SVG_TRASH}</button>`
+        : `<button class="btn-icon" onclick="Estoque.previewCard('${p.id}')" title="Ver card da loja">${SVG_EYE}</button>`;
+
       return `<tr class="table-row" data-id="${p.id}">
         <td class="td-thumb">${thumb}</td>
         <td class="font-medium">${esc(nome)}</td>
@@ -82,11 +97,7 @@ const Estoque = (() => {
         <td class="td-muted">${esc(p.cores)}</td>
         <td><span class="badge ${baixo?'badge-red':'badge-green'}">${qtd}</span></td>
         <td class="font-medium">${formatCurrency(p.valor)}</td>
-        <td class="actions-cell">
-          <button class="btn-icon" onclick="Estoque.previewCard('${p.id}')" title="Ver card da loja">${SVG_EYE}</button>
-          <button class="btn-icon" onclick="Estoque.openEditModal('${p.id}')" title="Editar">${SVG_EDIT}</button>
-          <button class="btn-icon btn-danger-icon" onclick="Estoque.deleteItem('${p.id}')" title="Excluir">${SVG_TRASH}</button>
-        </td>
+        <td class="actions-cell">${acoes}</td>
       </tr>`;
     }).join(''));
   }
@@ -125,12 +136,10 @@ const Estoque = (() => {
   }
 
   function openEditModal(id) {
+    if (!canEdit()) { showToast('Sem permissão para editar.', 'warning'); return; }
     const p=id?_data.find(x=>String(x.id)===String(id)):null;
     _editingId=id||null;
-    const isNew=!p;
-    const nome=p?.produto||p?.nome||'', img=p?.imagem||'';
-
-    // Opções de linha
+    const isNew=!p, nome=p?.produto||p?.nome||'', img=p?.imagem||'';
     const linhaOpts = LINHAS.map(l=>`<option value="${l}" ${p?.linha===l?'selected':''}>${l}</option>`).join('');
 
     openModal(`<div class="modal-card">
@@ -167,7 +176,6 @@ const Estoque = (() => {
             <input type="number" id="mProdValor" class="input-field" value="${p?.valor??''}" min="0" step="0.01" placeholder="0,00">
           </div>
         </div>
-
         <div class="form-group mt-8">
           <label>Imagem do Produto</label>
           ${img?`<div style="margin-bottom:.75rem"><img src="${img}" style="height:80px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" onerror="this.style.display='none'"></div>`:''}
@@ -199,19 +207,19 @@ const Estoque = (() => {
   }
 
   async function save() {
+    if (!canEdit()) { showToast('Sem permissão para salvar.', 'warning'); return; }
     const nomeProd = document.getElementById('mProdNome')?.value.trim();
     const qtd      = parseInt(document.getElementById('mProdQtd')?.value);
     const valor    = parseFloat(document.getElementById('mProdValor')?.value);
     const isNew    = !_editingId;
 
-    if (isNew && !nomeProd)      { showToast('Nome é obrigatório.', 'warning');   return; }
-    if (isNaN(qtd)  || qtd < 0)  { showToast('Quantidade inválida.', 'warning'); return; }
-    if (isNaN(valor)|| valor < 0){ showToast('Valor inválido.', 'warning');       return; }
+    if (isNew && !nomeProd)       { showToast('Nome é obrigatório.', 'warning');   return; }
+    if (isNaN(qtd)  || qtd  < 0) { showToast('Quantidade inválida.', 'warning'); return; }
+    if (isNaN(valor)|| valor < 0) { showToast('Valor inválido.', 'warning');       return; }
 
     const btn = document.getElementById('btnSaveEstoque');
     if (btn) { btn.disabled=true; btn.textContent='Salvando…'; }
 
-    // Upload de imagem para o Cloudinary
     let imagemUrl = null;
     const fileInput = document.getElementById('mProdImagem');
     if (fileInput?.files?.[0]) {
@@ -233,9 +241,7 @@ const Estoque = (() => {
         const linha  = document.getElementById('mProdLinha')?.value.trim();
         const litros = document.getElementById('mProdLitros')?.value.trim();
         const cores  = document.getElementById('mProdCores')?.value.trim();
-
         if (!linha) { showToast('Selecione a linha do produto.', 'warning'); return; }
-
         const dados = { produto: nomeProd, linha, litros: litros||'', cores: cores||'', qtd, valor, imagem: imagemUrl||'', filtros:'' };
         const novo  = await API.createEstoque(dados);
         _data.unshift(novo);
@@ -256,6 +262,7 @@ const Estoque = (() => {
   }
 
   function deleteItem(id) {
+    if (!canEdit()) { showToast('Sem permissão para excluir.', 'warning'); return; }
     const p=_data.find(x=>String(x.id)===String(id)), nome=p?.produto||p?.nome||'este produto';
     confirmAction(`Excluir <strong>${esc(nome)}</strong>? Esta ação não pode ser desfeita.`, async()=>{
       try{await API.deleteEstoque(id);_data=_data.filter(x=>String(x.id)!==String(id));render(_data);showToast('Produto excluído.','success');}
