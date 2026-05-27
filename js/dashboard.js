@@ -10,7 +10,6 @@
 })();
 
 // ── GUARD ASSÍNCRONO ─────────────────────────────────────────────────────────
-// requireAuth() valida o cookie no servidor se não houver sessão local
 Auth.requireAuth().then(ok => { if (!ok) throw new Error('Não autenticado'); });
 
 // ── ÍCONES ───────────────────────────────────────────────────────────────────
@@ -29,6 +28,10 @@ const ICONS = {
   close:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
   sun:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
   moon:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
+  sparkle:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>`,
+  camera:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+  upload:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+  logout:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
 };
 
 // ── UTILITÁRIOS GLOBAIS ───────────────────────────────────────────────────────
@@ -43,17 +46,9 @@ function formatDate(d) {
 }
 function isToday(d)     { const a = new Date(d), n = new Date(); return a.getDate()===n.getDate() && a.getMonth()===n.getMonth() && a.getFullYear()===n.getFullYear(); }
 function isThisMonth(d) { const a = new Date(d), n = new Date(); return a.getMonth()===n.getMonth() && a.getFullYear()===n.getFullYear(); }
-
-function createSkeletonRows(r, c) {
-  let h = '';
-  for (let i=0;i<r;i++) { h+='<tr class="skeleton-row">'; for(let j=0;j<c;j++) h+='<td><div class="skeleton-line"></div></td>'; h+='</tr>'; }
-  return h;
-}
-function createSkeletonCards(n) {
-  let h='';
-  for(let i=0;i<n;i++) h+=`<div class="overview-card skeleton-card"><div class="skeleton-line w50"></div><div class="skeleton-line w35 mt-8"></div></div>`;
-  return h;
-}
+function createSkeletonRows(r, c) { let h=''; for(let i=0;i<r;i++){h+='<tr class="skeleton-row">'; for(let j=0;j<c;j++) h+='<td><div class="skeleton-line"></div></td>'; h+='</tr>';} return h; }
+function createSkeletonCards(n) { let h=''; for(let i=0;i<n;i++) h+=`<div class="overview-card skeleton-card"><div class="skeleton-line w50"></div><div class="skeleton-line w35 mt-8"></div></div>`; return h; }
+function esc(s) { return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 window.formatCurrency     = formatCurrency;
 window.formatDate         = formatDate;
@@ -63,13 +58,24 @@ window.createSkeletonRows = createSkeletonRows;
 window.createSkeletonCards= createSkeletonCards;
 
 // ── THEME ────────────────────────────────────────────────────────────────────
+const THEMES = {
+  dark:   { label: 'Escuro',  icon: 'moon'    },
+  light:  { label: 'Claro',   icon: 'sun'     },
+  violet: { label: 'Violeta', icon: 'sparkle' },
+};
+
 function setTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   localStorage.setItem('sublime-theme', t);
   const btn = document.getElementById('themeToggle');
-  if (btn) { btn.innerHTML = t==='dark' ? ICONS.sun : ICONS.moon; btn.title = t==='dark' ? 'Modo claro' : 'Modo escuro'; }
+  if (btn) { btn.innerHTML = ICONS[THEMES[t]?.icon || 'moon']; btn.title = THEMES[t]?.label || t; }
 }
-function toggleTheme() { setTheme(document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark'); }
+function toggleTheme() {
+  const order = ['dark', 'light', 'violet'];
+  const curr  = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next  = order[(order.indexOf(curr) + 1) % order.length];
+  setTheme(next);
+}
 
 // ── TOASTS ───────────────────────────────────────────────────────────────────
 const TOAST_META = {
@@ -86,10 +92,7 @@ function showToast(message, type='info') {
   el.className = `toast toast-${type}`;
   el.innerHTML = `
     <div class="toast-icon">${meta.icon}</div>
-    <div class="toast-body">
-      <div class="toast-title">${meta.title}</div>
-      <div class="toast-msg">${message}</div>
-    </div>
+    <div class="toast-body"><div class="toast-title">${meta.title}</div><div class="toast-msg">${message}</div></div>
     <button class="toast-close">${ICONS.close}</button>`;
   el.querySelector('.toast-close').onclick = () => dismissToast(el);
   c.appendChild(el);
@@ -129,6 +132,187 @@ window.openModal     = openModal;
 window.closeModal    = closeModal;
 window.confirmAction = confirmAction;
 
+// ── PERFIL DO USUÁRIO ────────────────────────────────────────────────────────
+function openProfileModal() {
+  const user = Auth.getUser();
+  if (!user) return;
+
+  const initials = (user.nome || '?').split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
+  const avatarHtml = user.foto
+    ? `<img src="${user.foto}" id="profileAvatarImg" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);display:block" onerror="this.style.display='none'">`
+    : `<div id="profileAvatarInitials" style="width:80px;height:80px;border-radius:50%;background:var(--accent-soft);border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;color:var(--accent)">${initials}</div>`;
+
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+  openModal(`
+    <div class="modal-card" style="max-width:380px">
+      <div class="modal-header">
+        <h3>Meu Perfil</h3>
+        <button class="btn-icon" onclick="closeModal()">${ICONS.close}</button>
+      </div>
+      <div class="modal-body" style="gap:1.5rem">
+
+        <!-- Avatar + nome -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.6rem;padding:.5rem 0">
+          <div id="profileAvatarWrap" style="position:relative;cursor:pointer" title="Clique para trocar a foto">
+            ${avatarHtml}
+            <div style="position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;border:2px solid var(--surface)">
+              ${ICONS.camera}
+            </div>
+            <input type="file" id="profileFotoFile" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;border-radius:50%" onchange="uploadProfileFoto(this)">
+          </div>
+          <div style="font-size:1.05rem;font-weight:700;color:var(--text);text-align:center">${esc(user.nome)}</div>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <span style="font-size:.82rem;color:var(--text-muted)">@${esc(user.apelido)}</span>
+            <span class="badge ${user.isAdmin ? 'badge-purple' : 'badge-gray'}">${user.isAdmin ? 'Admin' : 'Usuário'}</span>
+          </div>
+        </div>
+
+        <!-- Tema -->
+        <div>
+          <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:.6rem">Aparência</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem" id="themeButtons">
+            ${Object.entries(THEMES).map(([key, t]) => themeOptionBtn(key, t, currentTheme)).join('')}
+          </div>
+        </div>
+
+        <!-- Foto via URL -->
+        <div>
+          <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:.6rem">Foto do perfil</div>
+          <div style="display:flex;gap:.5rem">
+            <input type="url" id="profileFotoUrl" class="input-field" value="${esc(user.foto || '')}" placeholder="Cole uma URL ou use o upload acima" style="flex:1;font-size:.82rem">
+          </div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:.5rem;width:100%" onclick="saveProfileFoto()">
+            Salvar foto
+          </button>
+          <div id="profileFotoStatus" style="font-size:.78rem;color:var(--text-muted);margin-top:.35rem;text-align:center;min-height:1.2em"></div>
+        </div>
+
+      </div>
+      <div class="modal-footer" style="flex-direction:column;gap:.5rem">
+        <button class="btn btn-danger btn-full" onclick="Auth.logout()">
+          ${ICONS.logout} Sair da conta
+        </button>
+      </div>
+    </div>
+  `);
+}
+
+function themeOptionBtn(key, t, current) {
+  const active = current === key;
+  return `
+    <button onclick="selectProfileTheme('${key}')" style="
+      padding:.65rem .5rem;border-radius:10px;cursor:pointer;font-family:inherit;
+      border:2px solid ${active ? 'var(--accent)' : 'var(--border)'};
+      background:${active ? 'var(--accent-soft)' : 'transparent'};
+      color:${active ? 'var(--accent)' : 'var(--text-muted)'};
+      font-size:.78rem;font-weight:600;
+      display:flex;flex-direction:column;align-items:center;gap:.3rem;
+      transition:.15s;
+    ">
+      <span style="line-height:0">${ICONS[t.icon]}</span>
+      ${t.label}
+    </button>`;
+}
+
+async function selectProfileTheme(theme) {
+  setTheme(theme);
+
+  // Atualiza os botões sem fechar o modal
+  const container = document.getElementById('themeButtons');
+  if (container) {
+    container.innerHTML = Object.entries(THEMES)
+      .map(([key, t]) => themeOptionBtn(key, t, theme)).join('');
+  }
+
+  // Salva no banco
+  const user = Auth.getUser();
+  if (user) {
+    try {
+      await API.updateUsuario(user.id, { tema: theme });
+      Auth.setUser({ ...user, tema: theme });
+    } catch (_) {}
+  }
+}
+window.selectProfileTheme = selectProfileTheme;
+
+async function uploadProfileFoto(input) {
+  if (!input?.files?.[0]) return;
+  const status = document.getElementById('profileFotoStatus');
+  if (status) status.textContent = 'Enviando…';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const res = await API.uploadImagem(fd);
+    const url = res?.url;
+    if (!url) throw new Error('URL não retornada');
+
+    const urlInput = document.getElementById('profileFotoUrl');
+    if (urlInput) urlInput.value = url;
+
+    // Atualiza preview no modal
+    _updateModalAvatar(url);
+    if (status) status.textContent = 'Upload concluído! Clique em "Salvar foto".';
+  } catch (err) {
+    if (status) status.textContent = 'Erro: ' + err.message;
+    showToast('Erro no upload: ' + err.message, 'error');
+  }
+}
+window.uploadProfileFoto = uploadProfileFoto;
+
+async function saveProfileFoto() {
+  const url    = document.getElementById('profileFotoUrl')?.value.trim() || null;
+  const status = document.getElementById('profileFotoStatus');
+  const user   = Auth.getUser();
+  if (!user) return;
+
+  try {
+    await API.updateUsuario(user.id, { foto: url });
+    const updated = { ...user, foto: url };
+    Auth.setUser(updated);
+
+    // Atualiza sidebar
+    _updateSidebarAvatar(updated);
+    // Atualiza preview no modal
+    _updateModalAvatar(url);
+
+    if (status) status.textContent = 'Foto salva com sucesso!';
+    showToast('Foto atualizada!', 'success');
+  } catch (err) {
+    if (status) status.textContent = 'Erro: ' + err.message;
+    showToast(err.message, 'error');
+  }
+}
+window.saveProfileFoto = saveProfileFoto;
+
+function _updateModalAvatar(url) {
+  const wrap = document.getElementById('profileAvatarWrap');
+  if (!wrap) return;
+  const existing = wrap.querySelector('img, div[id^="profileAvatar"]');
+  if (existing) {
+    if (url) {
+      existing.outerHTML = `<img src="${url}" id="profileAvatarImg" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--accent)" onerror="this.style.display='none'">`;
+    }
+  }
+}
+
+function _updateSidebarAvatar(user) {
+  const avatarImg     = document.getElementById('sidebarAvatarImg');
+  const initials      = document.getElementById('sidebarAvatarInitials');
+  if (user.foto && avatarImg) {
+    avatarImg.src = user.foto;
+    avatarImg.style.display = 'block';
+    if (initials) initials.style.display = 'none';
+  } else if (!user.foto) {
+    if (avatarImg) avatarImg.style.display = 'none';
+    if (initials) {
+      initials.style.display = '';
+      initials.textContent = (user.nome||'?').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+    }
+  }
+}
+
 // ── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
 const SECTION_TITLES = {
   overview:'Visão Geral', estoque:'Estoque', pedidos:'Pedidos',
@@ -138,7 +322,6 @@ const SECTION_TITLES = {
 let _active = null;
 
 function navigateTo(section) {
-  // Verifica permissão antes de navegar
   if (section !== 'overview' && section !== 'relatorio') {
     const secaoMap = { estoque:'estoque', pedidos:'pedidos', cupons:'cupons', config:'config', usuarios:'usuarios' };
     const chave = secaoMap[section];
@@ -247,12 +430,13 @@ function drawChart(pedidos) {
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
   const isLight=document.documentElement.getAttribute('data-theme')==='light';
-  const C_GRID=isLight?'#dddde8':'#2a2a38', C_TEXT=isLight?'#9090b8':'#6b6b88', C_BAR='#7c3aed';
+  const C_GRID=isLight?'#dddde8':'#2a2a38', C_TEXT=isLight?'#9090b8':'#6b6b88', C_BAR='var(--accent)';
   const pad={top:24,right:16,bottom:44,left:64};
   const cW=W-pad.left-pad.right, cH=H-pad.top-pad.bottom;
   const maxV=Math.max(...days.map(d=>d.total),100);
   const barW=Math.max(8,(cW/days.length)*0.55), gap=cW/days.length;
   ctx.clearRect(0,0,W,H);
+  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7c3aed';
   for(let i=0;i<=4;i++) {
     const y=pad.top+(cH/4)*i;
     ctx.strokeStyle=C_GRID; ctx.lineWidth=1; ctx.setLineDash([4,4]);
@@ -262,7 +446,7 @@ function drawChart(pedidos) {
   }
   days.forEach((d,i) => {
     const bH=Math.max(2,(d.total/maxV)*cH), x=pad.left+gap*i+(gap-barW)/2, y=pad.top+cH-bH;
-    ctx.fillStyle=d.total>0?C_BAR:C_GRID; ctx.beginPath(); ctx.roundRect(x,y,barW,bH,[4,4,0,0]); ctx.fill();
+    ctx.fillStyle=d.total>0?accentColor:C_GRID; ctx.beginPath(); ctx.roundRect(x,y,barW,bH,[4,4,0,0]); ctx.fill();
     if(W<500&&i%2!==0) return;
     ctx.fillStyle=C_TEXT; ctx.font='10px system-ui'; ctx.textAlign='center'; ctx.textBaseline='top';
     ctx.fillText(d.label,x+barW/2,H-pad.bottom+8);
@@ -274,6 +458,10 @@ window.loadRelatorio = loadRelatorio;
 document.addEventListener('DOMContentLoaded', () => {
   const user = Auth.getUser();
 
+  // Aplica tema do usuário (vem do login/me)
+  const temaInicial = user?.tema || localStorage.getItem('sublime-theme') || 'dark';
+  setTheme(temaInicial);
+
   // Avatar + nome na sidebar
   const nameEl    = document.getElementById('sidebarUserName');
   const avatarImg = document.getElementById('sidebarAvatarImg');
@@ -282,19 +470,22 @@ document.addEventListener('DOMContentLoaded', () => {
   if (nameEl && user) nameEl.textContent = user.nome || user.apelido || 'Usuário';
 
   if (user?.foto && avatarImg) {
-    avatarImg.src     = user.foto;
+    avatarImg.src = user.foto;
     avatarImg.style.display = 'block';
     if (initials) initials.style.display = 'none';
   } else if (initials && user) {
     initials.textContent = (user.nome||'?').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
   }
 
+  // Clique no perfil da sidebar → abre modal de perfil
+  document.getElementById('sidebarProfileBtn')?.addEventListener('click', openProfileModal);
+
   // Mostra nav de Usuários apenas para Admin
   if (Auth.isAdmin()) {
     document.getElementById('navUsuarios')?.style.removeProperty('display');
   }
 
-  // Esconde nav items sem permissão (não-admin)
+  // Esconde nav items sem permissão
   if (!Auth.isAdmin()) {
     const mapSection = { config:'config', cupons:'cupons' };
     Object.entries(mapSection).forEach(([sec, chave]) => {
@@ -304,8 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Tema
-  setTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+  // Theme toggle no header (cicla entre os 3 temas)
   document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
 
   // Nav
@@ -320,7 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('panelOverlay')?.addEventListener('click', () => Pedidos.closePanel());
   document.getElementById('btnClosePanel')?.addEventListener('click', () => Pedidos.closePanel());
 
-  // Logout (agora assíncrono — apaga cookie no servidor)
+  // Logout
   document.getElementById('btnLogout')?.addEventListener('click', () => Auth.logout());
 
   // Seção inicial
