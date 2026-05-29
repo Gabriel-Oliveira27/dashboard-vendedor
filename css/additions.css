@@ -1,0 +1,110 @@
+/* ══════════════════════════════════════════════════════════════════
+   additions.css — Estilos para os novos módulos (v2)
+   Adicionar no final do style.css ou incluir após ele.
+══════════════════════════════════════════════════════════════════ */
+
+/* ── Toggle Switch ──────────────────────────────────────────────── */
+.cfg-toggle {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cfg-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.cfg-toggle-track {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--border);
+  transition: background 0.22s;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.cfg-toggle input:checked ~ .cfg-toggle-track {
+  background: var(--accent);
+}
+
+.cfg-toggle-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cfg-toggle input:checked ~ .cfg-toggle-track .cfg-toggle-thumb {
+  transform: translateX(20px);
+}
+
+/* ── Markdown Toolbar ───────────────────────────────────────────── */
+.md-toolbar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.md-toolbar button {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, color .15s, border-color .15s;
+  line-height: 1;
+}
+
+.md-toolbar button:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.md-toolbar button code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: .72rem;
+}
+
+/* ── Frete faixa row ────────────────────────────────────────────── */
+.frete-faixa-row {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: .6rem .75rem;
+  margin-bottom: .5rem;
+}
+
+@media (max-width: 600px) {
+  .frete-faixa-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .frete-faixa-row > *:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ── Config cards compact ───────────────────────────────────────── */
+.cfg-section-label {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-dim);
+  margin: .25rem 0 .6rem;
+}

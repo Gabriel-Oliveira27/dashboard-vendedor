@@ -7,14 +7,12 @@
   <script>(function(){const t=localStorage.getItem('sublime-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})()</script>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/additions.css">
 </head>
 <body class="dashboard-body">
 
   <!-- ═══════════════════════ PAINEL DE PERFIL FLUTUANTE ═══════════════════ -->
-  <!-- Aparece acima do footer da sidebar ao clicar no avatar -->
   <div class="profile-panel" id="profilePanel">
-
-    <!-- Cabeçalho: avatar + nome -->
     <div class="profile-panel-header">
       <div class="profile-panel-avatar" id="panelAvatarInner"></div>
       <div class="profile-panel-info">
@@ -22,16 +20,10 @@
         <div class="profile-panel-role" id="panelRole"></div>
       </div>
     </div>
-
     <div class="profile-panel-sep"></div>
-
-    <!-- Temas -->
     <div class="profile-panel-section-label">Aparência</div>
     <div id="panelThemeList"></div>
-
     <div class="profile-panel-sep"></div>
-
-    <!-- Trocar foto -->
     <button class="panel-item" onclick="openPhotoModal()">
       <span class="panel-item-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
@@ -41,10 +33,7 @@
       </span>
       <span>Trocar foto</span>
     </button>
-
     <div class="profile-panel-sep"></div>
-
-    <!-- Sair -->
     <button class="panel-item panel-item-danger" onclick="Auth.logout()">
       <span class="panel-item-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
@@ -55,7 +44,6 @@
       </span>
       <span>Sair da conta</span>
     </button>
-
   </div>
 
   <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
@@ -87,6 +75,16 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Configurações
       </a>
+      <!-- ▼ NOVO: Descontos -->
+      <a class="nav-item" data-section="descontos" id="navDescontos" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+        Descontos
+      </a>
+      <!-- ▼ NOVO: Frete -->
+      <a class="nav-item" data-section="frete" id="navFrete" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Frete
+      </a>
       <a class="nav-item" data-section="relatorio" role="button" tabindex="0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
         Relatório
@@ -97,7 +95,7 @@
       </a>
     </nav>
 
-    <!-- Footer clicável — abre painel de perfil -->
+    <!-- Footer clicável -->
     <button class="sidebar-footer" id="sidebarProfileBtn"
       style="width:100%;background:none;border:none;border-top:1px solid var(--border);cursor:pointer;text-align:left;transition:background var(--transition)"
       onmouseenter="this.style.background='var(--surface-hover)'"
@@ -107,7 +105,6 @@
         <span id="sidebarAvatarInitials"></span>
       </div>
       <span class="sidebar-user-name" id="sidebarUserName">...</span>
-      <!-- Logout rápido sem abrir painel -->
       <span id="btnLogout" role="button" title="Sair da conta"
         onclick="event.stopPropagation(); Auth.logout()"
         style="padding:4px;border-radius:6px;color:var(--text-dim);line-height:0;display:inline-flex;align-items:center;transition:color var(--transition),background var(--transition)"
@@ -132,6 +129,7 @@
 
     <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
+    <!-- ── Overview ── -->
     <section class="content-section" id="section-overview">
       <div class="section-header"><h2>Visão Geral</h2><button class="btn btn-ghost btn-sm" onclick="loadOverview()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Atualizar</button></div>
       <div class="overview-cards" id="overviewCards"></div>
@@ -141,6 +139,7 @@
       </div>
     </section>
 
+    <!-- ── Estoque ── -->
     <section class="content-section" id="section-estoque">
       <div class="section-header"><h2>Estoque</h2>
         <div class="section-actions">
@@ -152,6 +151,7 @@
       <div class="table-wrapper"><table class="data-table"><thead><tr><th>Foto</th><th>Produto</th><th>Linha</th><th>Litros</th><th>Cores</th><th>Qtd</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="estoqueTableBody"></tbody></table></div>
     </section>
 
+    <!-- ── Pedidos ── -->
     <section class="content-section" id="section-pedidos">
       <div class="section-header"><h2>Pedidos</h2>
         <div class="section-actions">
@@ -163,6 +163,7 @@
       <div class="table-wrapper"><table class="data-table"><thead><tr><th>Rastreio</th><th>Cliente</th><th>Total</th><th>Método</th><th>Etapa</th><th>Pagamento</th><th>Data</th></tr></thead><tbody id="pedidosTableBody"></tbody></table></div>
     </section>
 
+    <!-- ── Cupons ── -->
     <section class="content-section" id="section-cupons">
       <div class="section-header"><h2>Cupons</h2>
         <div class="section-actions">
@@ -173,16 +174,43 @@
       <div class="table-wrapper"><table class="data-table"><thead><tr><th>Código</th><th>Desconto</th><th>Usos</th><th>Ação</th></tr></thead><tbody id="cuponsTableBody"></tbody></table></div>
     </section>
 
+    <!-- ── Configurações ── -->
     <section class="content-section" id="section-config">
       <div class="section-header"><h2>Configurações de Vendas</h2></div>
       <div id="configContainer"></div>
     </section>
 
+    <!-- ── NOVO: Descontos ── -->
+    <section class="content-section" id="section-descontos">
+      <div class="section-header">
+        <h2>Descontos</h2>
+        <button class="btn btn-ghost btn-sm" onclick="Descontos.init()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Atualizar
+        </button>
+      </div>
+      <div id="descontosContainer"></div>
+    </section>
+
+    <!-- ── NOVO: Frete ── -->
+    <section class="content-section" id="section-frete">
+      <div class="section-header">
+        <h2>Modelo de Frete</h2>
+        <button class="btn btn-ghost btn-sm" onclick="Frete.init()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Atualizar
+        </button>
+      </div>
+      <div id="freteContainer"></div>
+    </section>
+
+    <!-- ── Relatório ── -->
     <section class="content-section" id="section-relatorio">
       <div class="section-header"><h2>Relatório de Lucro</h2><button class="btn btn-ghost btn-sm" onclick="loadRelatorio()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Atualizar</button></div>
       <div id="relatorioContainer"></div>
     </section>
 
+    <!-- ── Usuários ── -->
     <section class="content-section" id="section-usuarios">
       <div class="section-header"><h2>Usuários</h2>
         <div class="section-actions">
@@ -194,11 +222,12 @@
     </section>
   </main>
 
+  <!-- ── Bottom nav (mobile) ── -->
   <nav class="bottom-nav" id="bottomNav">
     <button class="bottom-nav-item" data-section="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Geral</button>
     <button class="bottom-nav-item" data-section="estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Estoque</button>
     <button class="bottom-nav-item" data-section="pedidos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>Pedidos</button>
-    <button class="bottom-nav-item" data-section="cupons"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>Cupons</button>
+    <button class="bottom-nav-item" data-section="descontos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>Descontos</button>
     <button class="bottom-nav-item" data-section="relatorio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>Relatório</button>
   </nav>
 
@@ -215,12 +244,15 @@
     <div id="modalContainer"></div>
   </div>
 
+  <!-- ── Scripts ── -->
   <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
   <script src="js/estoque.js"></script>
   <script src="js/pedidos.js"></script>
   <script src="js/cupons.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/descontos.js"></script>
+  <script src="js/frete.js"></script>
   <script src="js/usuarios.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
