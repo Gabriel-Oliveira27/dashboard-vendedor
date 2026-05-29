@@ -2,7 +2,6 @@
 /**
  * api.js — Camada de comunicação com a API REST
  * Usa credentials:'include' para enviar o cookie httpOnly automaticamente.
- * O header Authorization não é mais necessário.
  */
 
 const API_BASE = 'https://sublime-react.vercel.app';
@@ -21,7 +20,7 @@ async function apiFetch(path, opts = {}) {
     res = await fetch(`${API_BASE}${path}`, {
       ...fetchOpts,
       headers,
-      credentials: 'include', // envia o cookie httpOnly automaticamente
+      credentials: 'include',
     });
   } catch (_) {
     throw new Error('Sem conexão com o servidor. Verifique sua internet.');
@@ -88,13 +87,24 @@ const API = {
   createCupom:  (dados) => apiFetch('/api/cupons',      { method: 'POST',   body: JSON.stringify(dados) }),
   deleteCupom:  (id)    => apiFetch(`/api/cupons/${id}`, { method: 'DELETE' }),
 
-  // ── Configurações de Vendas ───────────────────────────────────────────────
-  getConfigVendas:    ()      => apiFetch('/api/config/vendas'),
-  updateConfigVendas: (dados) => apiFetch('/api/config/vendas', { method: 'PATCH', body: JSON.stringify(dados) }),
+  // ── Configurações ─────────────────────────────────────────────────────────
+  /** Retorna TODAS as chaves de configuração (autenticado) */
+  getConfigVendas: () => apiFetch('/api/config/vendas'),
+
+  /** Salva/atualiza um par chave-valor na tabela Config */
+  setConfigKey: (chave, valor) =>
+    apiFetch('/api/config/vendas', {
+      method: 'PATCH',
+      body: JSON.stringify({ chave, valor: String(valor) }),
+    }),
+
+  /** Atalho legado — mantém compatibilidade com config.js existente */
+  updateConfigVendas: (dados) =>
+    apiFetch('/api/config/vendas', { method: 'PATCH', body: JSON.stringify(dados) }),
 
   // ── Usuários ──────────────────────────────────────────────────────────────
-  getUsuarios:    ()         => apiFetch('/api/usuarios'),
-  createUsuario:  (dados)    => apiFetch('/api/usuarios',      { method: 'POST',   body: JSON.stringify(dados) }),
+  getUsuarios:    ()          => apiFetch('/api/usuarios'),
+  createUsuario:  (dados)     => apiFetch('/api/usuarios',       { method: 'POST',   body: JSON.stringify(dados) }),
   updateUsuario:  (id, dados) => apiFetch(`/api/usuarios/${id}`, { method: 'PATCH',  body: JSON.stringify(dados) }),
   deleteUsuario:  (id)        => apiFetch(`/api/usuarios/${id}`, { method: 'DELETE' }),
 };

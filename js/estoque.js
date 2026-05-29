@@ -1,7 +1,7 @@
 'use strict';
 /**
  * estoque.js — Módulo de Estoque
- * Botões de ação só aparecem para quem tem permissão de editar.
+ * v2: inclui campo "detalhes" com toolbar Markdown.
  */
 
 const SVG_PACKAGE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
@@ -30,6 +30,11 @@ const LINHAS = ['FREEZER','AQUECER','CONSERVAR','PREPARAR','SERVIR','ARMAZENAR']
     .estoque-preview-price{color:#7c3aed;font-weight:700;font-size:1.05rem;margin-bottom:.3rem}
     .estoque-preview-stock{font-size:.75rem;color:var(--text-muted);margin-bottom:.65rem}
     .estoque-preview-btn{background:#7c3aed;color:#fff;border-radius:8px;padding:.45rem;text-align:center;font-size:.82rem;font-weight:600;opacity:.55;cursor:not-allowed}
+    /* Markdown toolbar */
+    .md-toolbar{display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap}
+    .md-toolbar button{height:28px;padding:0 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text-muted);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s,color .15s}
+    .md-toolbar button:hover{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+    .md-toolbar button code{font-family:'SF Mono','Fira Code',monospace;font-size:.72rem}
   `;
   document.head.appendChild(s);
 })();
@@ -38,6 +43,25 @@ let _zoomEl=null, _zoomTimer=null;
 function _getZoom() { if(!_zoomEl){_zoomEl=document.createElement('div');_zoomEl.id='estoqueZoomOverlay';_zoomEl.innerHTML='<img alt="">';document.body.appendChild(_zoomEl);}return _zoomEl; }
 function _showZoom(el,src){const z=_getZoom();z.querySelector('img').src=src;const r=el.getBoundingClientRect();let l=r.right+12,t=r.top;if(l+260>window.innerWidth)l=r.left-260;if(t+260>window.innerHeight)t=window.innerHeight-260;z.style.left=`${Math.max(8,l)}px`;z.style.top=`${Math.max(8,t)}px`;z.classList.add('visible');}
 function _hideZoom(){clearTimeout(_zoomTimer);_zoomEl?.classList.remove('visible');}
+
+/** Aplica formatação Markdown no textarea de detalhes */
+function applyMarkdown(type) {
+  const ta = document.getElementById('mProdDetalhes');
+  if (!ta) return;
+  const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+  const sel = v.slice(s, e) || 'texto';
+  const map = {
+    bold:   `**${sel}**`,
+    italic: `_${sel}_`,
+    list:   `\n- ${sel}`,
+    dash:   `\n— ${sel}`,
+  };
+  const rep = map[type] || sel;
+  ta.value = v.slice(0, s) + rep + v.slice(e);
+  ta.focus();
+  const newPos = s + rep.length;
+  ta.setSelectionRange(newPos, newPos);
+}
 
 const Estoque = (() => {
   let _data=[], _initialized=false, _editingId=null;
@@ -48,14 +72,11 @@ const Estoque = (() => {
       document.getElementById('estoqueSearch')?.addEventListener('input', e => filter(e.target.value));
       document.getElementById('btnNewProduto')?.addEventListener('click', () => openEditModal(null));
     }
-    // Esconde botão "+ Produto" se não puder editar
     const btnNew = document.getElementById('btnNewProduto');
     if (btnNew) btnNew.style.display = canEdit() ? '' : 'none';
-
     if (_data.length === 0) load();
   }
 
-  // Helpers de permissão
   const canEdit = () => Auth.isAdmin() || Auth.canEdit('estoque');
 
   async function load() {
@@ -82,7 +103,6 @@ const Estoque = (() => {
         ? `<img src="${p.imagem}" alt="${esc(nome)}" class="product-thumb" loading="lazy" onerror="Estoque.imgError(this)" onmouseenter="Estoque._hoverStart(this,'${p.imagem}')" onmouseleave="Estoque._hoverEnd()" style="cursor:zoom-in">`
         : `<div class="no-thumb">${SVG_PACKAGE}</div>`;
 
-      // Botões de ação condicionais à permissão
       const acoes = podeEditar
         ? `<button class="btn-icon" onclick="Estoque.previewCard('${p.id}')" title="Ver card da loja">${SVG_EYE}</button>
            <button class="btn-icon" onclick="Estoque.openEditModal('${p.id}')" title="Editar">${SVG_EDIT}</button>
@@ -141,6 +161,7 @@ const Estoque = (() => {
     _editingId=id||null;
     const isNew=!p, nome=p?.produto||p?.nome||'', img=p?.imagem||'';
     const linhaOpts = LINHAS.map(l=>`<option value="${l}" ${p?.linha===l?'selected':''}>${l}</option>`).join('');
+    const detalhes = esc(p?.detalhes || '');
 
     openModal(`<div class="modal-card">
       <div class="modal-header">
@@ -176,6 +197,8 @@ const Estoque = (() => {
             <input type="number" id="mProdValor" class="input-field" value="${p?.valor??''}" min="0" step="0.01" placeholder="0,00">
           </div>
         </div>
+
+        <!-- Imagem -->
         <div class="form-group mt-8">
           <label>Imagem do Produto</label>
           ${img?`<div style="margin-bottom:.75rem"><img src="${img}" style="height:80px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" onerror="this.style.display='none'"></div>`:''}
@@ -188,7 +211,23 @@ const Estoque = (() => {
           </div>
           <span class="field-hint">Upload para o Cloudinary. Formatos: JPG, PNG, WEBP.</span>
         </div>
-        ${!isNew?'<p class="field-hint mt-8">Somente Quantidade, Valor e Imagem podem ser editados.</p>':''}
+
+        <!-- Detalhes / Características -->
+        <div class="form-group mt-8" style="grid-column:1/-1">
+          <label>Descrição / Características</label>
+          <div class="md-toolbar">
+            <button type="button" onclick="applyMarkdown('bold')"   title="Negrito"><code>**N**</code></button>
+            <button type="button" onclick="applyMarkdown('italic')" title="Itálico"><code>_I_</code></button>
+            <button type="button" onclick="applyMarkdown('list')"   title="Item de lista">• Lista</button>
+            <button type="button" onclick="applyMarkdown('dash')"   title="Traço">— Traço</button>
+          </div>
+          <textarea id="mProdDetalhes" class="input-field" rows="6"
+            style="resize:vertical;height:auto;padding:.6rem .85rem;line-height:1.5"
+            placeholder="Suporta **negrito**, _itálico_, - listas...&#10;Capacidade: 1.5L&#10;Material: plástico BPA Free&#10;Garantia de fábrica: 10 anos">${detalhes}</textarea>
+          <p class="field-hint">Markdown suportado. Exibido como "Ver características" na página do produto.</p>
+        </div>
+
+        ${!isNew?'<p class="field-hint mt-8">Somente Quantidade, Valor, Imagem e Detalhes podem ser editados.</p>':''}
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
@@ -211,6 +250,7 @@ const Estoque = (() => {
     const nomeProd = document.getElementById('mProdNome')?.value.trim();
     const qtd      = parseInt(document.getElementById('mProdQtd')?.value);
     const valor    = parseFloat(document.getElementById('mProdValor')?.value);
+    const detalhes = document.getElementById('mProdDetalhes')?.value || null;
     const isNew    = !_editingId;
 
     if (isNew && !nomeProd)       { showToast('Nome é obrigatório.', 'warning');   return; }
@@ -242,12 +282,12 @@ const Estoque = (() => {
         const litros = document.getElementById('mProdLitros')?.value.trim();
         const cores  = document.getElementById('mProdCores')?.value.trim();
         if (!linha) { showToast('Selecione a linha do produto.', 'warning'); return; }
-        const dados = { produto: nomeProd, linha, litros: litros||'', cores: cores||'', qtd, valor, imagem: imagemUrl||'', filtros:'' };
+        const dados = { produto: nomeProd, linha, litros: litros||'', cores: cores||'', qtd, valor, imagem: imagemUrl||'', detalhes, filtros:'' };
         const novo  = await API.createEstoque(dados);
         _data.unshift(novo);
         showToast(`Produto "${nomeProd}" criado!`, 'success');
       } else {
-        const dados = { qtd, valor };
+        const dados = { qtd, valor, detalhes };
         if (imagemUrl) dados.imagem = imagemUrl;
         const updated = await API.updateEstoque(_editingId, dados);
         const idx = _data.findIndex(p => String(p.id) === String(_editingId));
@@ -276,4 +316,5 @@ const Estoque = (() => {
   return { init, load, openEditModal, previewImage, save, deleteItem, previewCard, imgError, _hoverStart, _hoverEnd };
 })();
 
-window.Estoque = Estoque;
+window.Estoque   = Estoque;
+window.applyMarkdown = applyMarkdown;
