@@ -1,8 +1,6 @@
+
 'use strict';
-/**
- * dashboard.js — Controlador principal
- * Auth via cookie httpOnly. Controle de visibilidade por permissões.
- */
+
 
 (function () {
   const t = localStorage.getItem('sublime-theme') || 'dark';
@@ -297,13 +295,15 @@ function _updateSidebarAvatar(user) {
 // ── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
 const SECTION_TITLES = {
   overview:'Visão Geral', estoque:'Estoque', pedidos:'Pedidos',
-  cupons:'Cupons', config:'Configurações de Vendas', relatorio:'Relatório', usuarios:'Usuários',
+  cupons:'Cupons', config:'Configurações de Vendas',
+  descontos:'Descontos', frete:'Modelo de Frete',
+  relatorio:'Relatório', usuarios:'Usuários',
 };
 let _active = null;
 
 function navigateTo(section) {
   if (section !== 'overview' && section !== 'relatorio') {
-    const map = {estoque:'estoque',pedidos:'pedidos',cupons:'cupons',config:'config',usuarios:'usuarios'};
+    const map = {estoque:'estoque',pedidos:'pedidos',cupons:'cupons',config:'config',descontos:'config',frete:'config',usuarios:'usuarios'};
     const k   = map[section];
     if (k && !Auth.canView(k) && !Auth.isAdmin()) { showToast('Sem permissão para esta seção.','warning'); return; }
   }
@@ -319,9 +319,11 @@ function navigateTo(section) {
     case 'estoque':   Estoque.init();  break;
     case 'pedidos':   Pedidos.init();  break;
     case 'cupons':    Cupons.init();   break;
-    case 'config':    Config.init();   break;
-    case 'relatorio': loadRelatorio(); break;
-    case 'usuarios':  Usuarios.init(); break;
+    case 'config':    Config.init();    break;
+    case 'descontos': Descontos.init(); break;
+    case 'frete':     Frete.init();     break;
+    case 'relatorio': loadRelatorio();  break;
+    case 'usuarios':  Usuarios.init();  break;
   }
 }
 window.navigateTo=navigateTo;
