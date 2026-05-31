@@ -1,8 +1,5 @@
 'use strict';
-/**
- * estoque.js — Módulo de Estoque
- * v2: inclui campo "detalhes" com toolbar Markdown.
- */
+
 
 const SVG_PACKAGE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
 const SVG_EDIT    = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
@@ -99,8 +96,9 @@ const Estoque = (() => {
     const podeEditar = canEdit();
     setBody(data.map(p => {
       const qtd=parseInt(p.qtd)??0, baixo=qtd<5, nome=p.produto||p.nome||'—';
+      const imgSrc = esc(p.imagem || '');
       const thumb = p.imagem
-        ? `<img src="${p.imagem}" alt="${esc(nome)}" class="product-thumb" loading="lazy" onerror="Estoque.imgError(this)" onmouseenter="Estoque._hoverStart(this,'${p.imagem}')" onmouseleave="Estoque._hoverEnd()" style="cursor:zoom-in">`
+        ? `<img src="${imgSrc}" alt="${esc(nome)}" class="product-thumb" loading="lazy" data-imgzoom="${imgSrc}" onerror="Estoque.imgError(this)" style="cursor:zoom-in">`
         : `<div class="no-thumb">${SVG_PACKAGE}</div>`;
 
       const acoes = podeEditar
@@ -113,7 +111,7 @@ const Estoque = (() => {
         <td class="td-thumb">${thumb}</td>
         <td class="font-medium">${esc(nome)}</td>
         <td class="td-muted">${esc(p.linha)}</td>
-        <td class="td-muted">${p.litros||'—'}</td>
+        <td class="td-muted">${esc(p.litros)||'—'}</td>
         <td class="td-muted">${esc(p.cores)}</td>
         <td><span class="badge ${baixo?'badge-red':'badge-green'}">${qtd}</span></td>
         <td class="font-medium">${formatCurrency(p.valor)}</td>
@@ -310,7 +308,16 @@ const Estoque = (() => {
     });
   }
 
-  function setBody(html){const el=document.getElementById('estoqueTableBody');if(el)el.innerHTML=html;}
+  function setBody(html) {
+    const el = document.getElementById('estoqueTableBody');
+    if (!el) return;
+    el.innerHTML = html;
+    // Bind zoom events via DOM — avoids XSS por inline handlers com dados não confiáveis
+    el.querySelectorAll('img[data-imgzoom]').forEach(img => {
+      img.addEventListener('mouseenter', () => Estoque._hoverStart(img, img.dataset.imgzoom));
+      img.addEventListener('mouseleave', () => Estoque._hoverEnd());
+    });
+  }
   function esc(s){return(s||'—').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
   return { init, load, openEditModal, previewImage, save, deleteItem, previewCard, imgError, _hoverStart, _hoverEnd };
