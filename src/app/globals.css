@@ -604,3 +604,33 @@ input[type="checkbox"].perm-check { width: 16px; height: 16px; accent-color: var
   .section-actions { flex-wrap: wrap; }
   .pix-card { flex-direction: column; }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE CARDS — Estoque e Pedidos (substitui tabela em telas pequenas)
+══════════════════════════════════════════════════════════════════ */
+.mobile-card-list { display: none; flex-direction: column; gap: 0.6rem; }
+.mobile-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: flex; flex-direction: column; gap: 0.55rem;
+  transition: background var(--transition);
+}
+.mobile-card:active { background: var(--surface-hover); }
+.mobile-card-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.875rem; }
+.mobile-card-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.mobile-card-title { font-weight: 600; font-size: 0.95rem; color: var(--text); }
+.mobile-card-sub { font-size: 0.8rem; color: var(--text-muted); }
+.mobile-card-header { display: flex; align-items: center; gap: 0.75rem; }
+.mobile-card-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
+.mobile-card-no-thumb { width: 44px; height: 44px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-dim); flex-shrink: 0; }
+.mobile-card-actions { display: flex; gap: 0.4rem; margin-top: 0.25rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
+.mobile-card-actions .btn { flex: 1; }
+
+@media (max-width: 768px) {
+  .desktop-table { display: none !important; }
+  .mobile-card-list { display: flex; }
+  /* Make the table-wrapper not scroll - hide it */
+  .table-wrapper.hide-mobile { display: none; }
+}

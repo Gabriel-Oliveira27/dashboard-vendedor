@@ -137,8 +137,19 @@ export function ConfigSection() {
     <div style={{ maxWidth: "620px", display: "flex", flexDirection: "column", gap: "1rem" }}>
       {!editing ? (
         <>
-          <div className="pix-card"><div className="pix-icon">💳</div><div><span className="pix-label">Chave PIX</span><span className="pix-value">{cfg.pix || "Não configurada"}</span></div></div>
-          <div className="pix-card"><div className="pix-icon">💬</div><div><span className="pix-label">WhatsApp</span><span className="pix-value">{cfg.whatsapp || "Não configurado"}</span></div></div>
+          <div className="pix-card">
+          <div className="pix-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
+              <rect x="1" y="4" width="22" height="16" rx="2"/>
+              <line x1="1" y1="10" x2="23" y2="10"/>
+            </svg>
+          </div><div><span className="pix-label">Chave PIX</span><span className="pix-value">{cfg.pix || "Não configurada"}</span></div></div>
+          <div className="pix-card">
+          <div className="pix-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+            </svg>
+          </div><div><span className="pix-label">WhatsApp</span><span className="pix-value">{cfg.whatsapp || "Não configurado"}</span></div></div>
           <div className="pix-card" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
             <span className="pix-label" style={{ display: "block", width: "100%" }}>Métodos de Pagamento</span>
             <Badge variant={cfg.PAGAMENTO_PIX !== "false" ? "green" : "gray"}>PIX</Badge>
@@ -448,10 +459,12 @@ function UsuarioModal({ user, onClose, onSaved, showToast }: { user: Usuario | n
         {foto && <img src={foto} alt="" style={{ width: "56px", height: "56px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--accent)", marginBottom: "0.5rem" }} />}
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--bg)", cursor: "pointer", fontSize: "0.82rem", color: "var(--text-muted)" }}>
-            📷 Câmera<input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handlePhoto(e.target.files[0])} />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Câmera<input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handlePhoto(e.target.files[0])} />
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--bg)", cursor: "pointer", fontSize: "0.82rem", color: "var(--text-muted)" }}>
-            🖼️ {uploading ? "Enviando…" : "Galeria"}<input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handlePhoto(e.target.files[0])} />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            {uploading ? "Enviando…" : "Galeria"}<input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handlePhoto(e.target.files[0])} />
           </label>
           {foto && <button type="button" onClick={() => setFoto("")} style={{ padding: "0.4rem 0.75rem", borderRadius: "var(--radius-sm)", border: "none", background: "var(--danger-soft)", color: "var(--danger)", cursor: "pointer", fontSize: "0.82rem" }}>Remover</button>}
         </div>

@@ -15,6 +15,12 @@ function maskCep(v: string) {
   return s;
 }
 
+async function nominatim(q: string): Promise<{ lat: string; lon: string }[]> {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=3&countrycodes=br&addressdetails=1`;
+  const r = await fetch(url, { headers: { "Accept-Language": "pt-BR", "User-Agent": "TupperStore/2.0" } });
+  return r.json();
+}
+
 export function OrigemPanel({ values, onChange, hint }: Props) {
   const [cepInput, setCepInput] = useState(values.origemCep ? values.origemCep.replace(/(\d{5})(\d{3})/, "$1-$2") : "");
   const [status, setStatus] = useState<{ type: "idle"|"loading"|"ok"|"warn"|"error"; msg: string }>({ type: "idle", msg: "" });
@@ -30,33 +36,57 @@ export function OrigemPanel({ values, onChange, hint }: Props) {
       const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
       const d = await res.json();
       if (d.erro) throw new Error("CEP não encontrado.");
+
       const numero = values.origemNumero || "";
-      const endCompleto = [d.logradouro, numero && `, ${numero}`, d.bairro && `, ${d.bairro}`, `, ${d.localidade}/${d.uf}`].filter(Boolean).join("").replace(/^,\s*/, "");
+      const endCompleto = [d.logradouro, numero && `, ${numero}`, d.bairro && `, ${d.bairro}`, `, ${d.localidade}/${d.uf}`]
+        .filter(Boolean).join("").replace(/^,\s*/, "");
       onChange({ origemCep: raw, origemEndereco: endCompleto, origemCidade: d.localidade, origemUF: d.uf });
+
       setStatus({ type: "loading", msg: `${d.localidade}/${d.uf} — geocodificando…` });
 
-      // Geocoding
+      // Strategy 1: CEP + número (most precise)
+      let geo: { lat: string; lon: string } | null = null;
       try {
-        const q1 = `${d.logradouro}${numero ? " " + numero : ""}, ${d.localidade}, ${d.uf}, Brasil`;
-        const r1 = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q1)}&format=json&limit=1&countrycodes=br`, { headers: { "Accept-Language": "pt-BR", "User-Agent": "TupperStore/2.0" } });
-        const j1 = await r1.json();
-        if (j1?.length) {
-          onChange({ origemLat: parseFloat(j1[0].lat).toFixed(6), origemLon: parseFloat(j1[0].lon).toFixed(6) });
-          setStatus({ type: "ok", msg: "Endereço localizado com precisão. Confirme no mapa." });
-        } else {
-          const q2 = `${d.localidade}, ${d.uf}, Brasil`;
-          const r2 = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q2)}&format=json&limit=1&countrycodes=br`, { headers: { "Accept-Language": "pt-BR", "User-Agent": "TupperStore/2.0" } });
-          const j2 = await r2.json();
-          if (j2?.length) {
-            onChange({ origemLat: parseFloat(j2[0].lat).toFixed(6), origemLon: parseFloat(j2[0].lon).toFixed(6) });
-            setStatus({ type: "warn", msg: `Centralizado em ${d.localidade}. Ajuste o pin no mapa.` });
-            setMapOpen(true);
-          } else {
-            setStatus({ type: "warn", msg: "Coordenadas não encontradas. Use o mapa para marcar." });
-            setMapOpen(true);
-          }
-        }
-      } catch { setStatus({ type: "warn", msg: "Erro no geocoding. Use o mapa para marcar a posição." }); setMapOpen(true); }
+        const q1 = `${raw}${numero ? " " + numero : ""}, Brasil`;
+        const r1 = await nominatim(q1);
+        if (r1?.length) { geo = r1[0]; }
+      } catch {}
+
+      // Strategy 2: street address + city
+      if (!geo && d.logradouro) {
+        try {
+          const q2 = `${d.logradouro}${numero ? " " + numero : ""}, ${d.localidade}, ${d.uf}, Brasil`;
+          const r2 = await nominatim(q2);
+          if (r2?.length) { geo = r2[0]; }
+        } catch {}
+      }
+
+      // Strategy 3: CEP only
+      if (!geo) {
+        try {
+          const r3 = await nominatim(`${raw}, Brasil`);
+          if (r3?.length) { geo = r3[0]; }
+        } catch {}
+      }
+
+      // Strategy 4: city centroid (fallback)
+      if (!geo) {
+        try {
+          const r4 = await nominatim(`${d.localidade}, ${d.uf}, Brasil`);
+          if (r4?.length) { geo = r4[0]; }
+        } catch {}
+      }
+
+      if (geo) {
+        const lat = parseFloat(geo.lat).toFixed(6);
+        const lon = parseFloat(geo.lon).toFixed(6);
+        onChange({ origemLat: lat, origemLon: lon });
+        setStatus({ type: "ok", msg: `Localizado em ${lat}, ${lon}. Confirme no mapa e ajuste se necessário.` });
+        setMapOpen(true);
+      } else {
+        setStatus({ type: "warn", msg: "Não foi possível geocodificar. Use o mapa para marcar a posição." });
+        setMapOpen(true);
+      }
     } catch (e: unknown) {
       setStatus({ type: "error", msg: (e as Error).message });
     } finally { setLoadingCep(false); }
@@ -78,9 +108,10 @@ export function OrigemPanel({ values, onChange, hint }: Props) {
         </div>
         <div style={{ display: "flex", alignItems: "flex-end" }}>
           <button className="btn btn-ghost" onClick={buscar} disabled={loadingCep}>
-            {loadingCep ? "Buscando…" : (
-              <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar CEP</>
-            )}
+            {loadingCep
+              ? "Buscando…"
+              : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar CEP</>
+            }
           </button>
         </div>
       </div>
@@ -98,27 +129,27 @@ export function OrigemPanel({ values, onChange, hint }: Props) {
 
       <div className="form-group">
         <label>Endereço completo (preenchido pelo CEP)</label>
-        <input className="input-field" value={values.origemEndereco} readOnly style={{ opacity: .7, cursor: "default" }} placeholder="Busque o CEP acima" />
+        <input className="input-field" value={values.origemEndereco} readOnly style={{ opacity: .7 }} placeholder="Busque o CEP acima" />
       </div>
 
       <div className="form-grid-2">
         <div className="form-group">
           <label>Latitude (auto)</label>
-          <input className="input-field" value={values.origemLat} readOnly style={{ opacity: .7, cursor: "default", fontFamily: "monospace", fontSize: "0.8rem" }} placeholder="Detectada" />
+          <input className="input-field" value={values.origemLat} readOnly style={{ opacity: .7, fontFamily: "monospace", fontSize: "0.8rem" }} placeholder="Detectada" />
         </div>
         <div className="form-group">
           <label>Longitude (auto)</label>
-          <input className="input-field" value={values.origemLon} readOnly style={{ opacity: .7, cursor: "default", fontFamily: "monospace", fontSize: "0.8rem" }} placeholder="Detectada" />
+          <input className="input-field" value={values.origemLon} readOnly style={{ opacity: .7, fontFamily: "monospace", fontSize: "0.8rem" }} placeholder="Detectada" />
         </div>
       </div>
 
       {status.type !== "idle" && (
-        <p style={{ fontSize: "0.82rem", color: statusColor }}>{status.msg}</p>
+        <p style={{ fontSize: "0.82rem", color: statusColor, lineHeight: 1.4 }}>{status.msg}</p>
       )}
 
       <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setMapOpen(true)}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-        {values.origemLat ? "Confirmar no mapa" : "Marcar no mapa"}
+        {values.origemLat ? "Confirmar/ajustar no mapa" : "Marcar no mapa"}
       </button>
 
       {mapOpen && (
@@ -129,7 +160,7 @@ export function OrigemPanel({ values, onChange, hint }: Props) {
           endereco={values.origemEndereco}
           onConfirm={(lat, lon) => {
             onChange({ origemLat: lat.toFixed(6), origemLon: lon.toFixed(6) });
-            setStatus({ type: "ok", msg: `Posição ajustada: ${lat.toFixed(5)}, ${lon.toFixed(5)}` });
+            setStatus({ type: "ok", msg: `Posição confirmada: ${lat.toFixed(5)}, ${lon.toFixed(5)}` });
             setMapOpen(false);
           }}
           onClose={() => setMapOpen(false)}
@@ -139,9 +170,13 @@ export function OrigemPanel({ values, onChange, hint }: Props) {
   );
 }
 
-function MapModal({ lat, lon, zoom, endereco, onConfirm, onClose }: { lat: number; lon: number; zoom: number; endereco: string; onConfirm: (lat: number, lon: number) => void; onClose: () => void; }) {
+function MapModal({ lat, lon, zoom, endereco, onConfirm, onClose }: {
+  lat: number; lon: number; zoom: number; endereco: string;
+  onConfirm: (lat: number, lon: number) => void; onClose: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
+  const markerRef = useRef<unknown>(null);
   const coordsRef = useRef({ lat, lon });
 
   useEffect(() => {
@@ -150,6 +185,7 @@ function MapModal({ lat, lon, zoom, endereco, onConfirm, onClose }: { lat: numbe
       const L = (await import("leaflet")).default;
       await import("leaflet/dist/leaflet.css");
       if (!mounted || !containerRef.current) return;
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
@@ -157,35 +193,70 @@ function MapModal({ lat, lon, zoom, endereco, onConfirm, onClose }: { lat: numbe
         iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
         shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
       });
+
       const map = L.map(containerRef.current).setView([lat, lon], zoom);
       mapRef.current = map;
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OSM", maxZoom: 19 }).addTo(map);
-      const icon = L.divIcon({ html: `<div style="background:var(--accent,#7c3aed);width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`, iconSize: [18,18], iconAnchor: [9,9], className: "" });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap", maxZoom: 19,
+      }).addTo(map);
+
+      const icon = L.divIcon({
+        html: `<div style="background:var(--accent,#7c3aed);width:20px;height:20px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:grab"></div>`,
+        iconSize: [20, 20], iconAnchor: [10, 10], className: "",
+      });
+
       const marker = L.marker([lat, lon], { draggable: true, icon }).addTo(map);
-      marker.bindPopup("📍 Arraste para ajustar").openPopup();
+      markerRef.current = marker;
+      marker.bindPopup("📍 Arraste ou clique no mapa para reposicionar").openPopup();
+
+      // Update coords on drag
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      marker.on("drag", (e: any) => { const p = e.target.getLatLng(); coordsRef.current = { lat: p.lat, lon: p.lng }; });
+      marker.on("dragend", (e: any) => {
+        const p = e.target.getLatLng();
+        coordsRef.current = { lat: p.lat, lon: p.lng };
+      });
+
+      // Click on map moves the marker
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.on("click", (e: any) => {
+        const { lat: newLat, lng: newLng } = e.latlng;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (markerRef.current as any).setLatLng([newLat, newLng]);
+        coordsRef.current = { lat: newLat, lon: newLng };
+      });
     };
+
     const t = setTimeout(init, 80);
-    return () => { mounted = false; clearTimeout(t); if (mapRef.current) { (mapRef.current as any).remove(); mapRef.current = null; } };
+    return () => {
+      mounted = false; clearTimeout(t);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (mapRef.current) { (mapRef.current as any).remove(); mapRef.current = null; }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="modal-overlay visible" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card" style={{ maxWidth: "640px" }}>
+      <div className="modal-card" style={{ maxWidth: "660px" }}>
         <div className="modal-header">
           <h3>Confirmar posição no mapa</h3>
-          <button className="btn-icon" onClick={onClose}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <button className="btn-icon" onClick={onClose}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
-        <div style={{ padding: "0.75rem 1.25rem", background: "var(--bg)", borderBottom: "1px solid var(--border)", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-          📍 <strong style={{ color: "var(--text)" }}>{endereco || "Endereço"}</strong><br />
-          <span style={{ fontSize: "0.78rem" }}>Arraste o marcador para a posição exata.</span>
+        <div style={{ padding: "0.65rem 1.25rem", background: "var(--bg)", borderBottom: "1px solid var(--border)", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+          📍 <strong style={{ color: "var(--text)" }}>{endereco || "Endereço não informado"}</strong><br />
+          <span style={{ fontSize: "0.78rem" }}>
+            <strong>Clique no mapa</strong> para mover o marcador, ou <strong>arraste</strong> o pin para a posição exata.
+          </span>
         </div>
         <div ref={containerRef} style={{ height: "360px", width: "100%" }} />
         <div className="modal-footer">
           <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={() => onConfirm(coordsRef.current.lat, coordsRef.current.lon)}>Confirmar posição</button>
+          <button className="btn btn-primary" onClick={() => onConfirm(coordsRef.current.lat, coordsRef.current.lon)}>
+            Confirmar posição
+          </button>
         </div>
       </div>
     </div>

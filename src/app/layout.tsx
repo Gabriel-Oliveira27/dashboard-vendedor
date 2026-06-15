@@ -4,6 +4,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "TupperStore — Painel",
   description: "Painel de vendas TupperStore",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/icon-256.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

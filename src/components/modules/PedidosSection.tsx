@@ -106,8 +106,8 @@ export function PedidosSection() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="table-wrapper">
+      {/* Table — desktop */}
+      <div className="table-wrapper desktop-table">
         <table className="data-table">
           <thead>
             <tr>
@@ -134,6 +134,42 @@ export function PedidosSection() {
              })}
           </tbody>
         </table>
+      </div>
+
+      {/* Cards — mobile */}
+      <div className="mobile-card-list">
+        {loading ? (
+          <div className="skeleton-line" style={{ height: "80px", borderRadius: "var(--radius-md)" }} />
+        ) : filtered.length === 0 ? (
+          <p className="empty-state">Nenhum pedido encontrado.</p>
+        ) : filtered.map((p) => {
+          const et = ETAPA_META[p.etapa] || { label: p.etapa, variant: "gray" as const };
+          const pago = p.pagamento === "REALIZADO";
+          return (
+            <div key={p.id} className="mobile-card" onClick={() => setSelected(p)} style={{ cursor: "pointer" }}>
+              <div className="mobile-card-row">
+                <span className="font-medium">{p.nome}</span>
+                <code className="code-badge">{p.idRastreio || String(p.id)}</code>
+              </div>
+              <div className="mobile-card-row">
+                <span className="mobile-card-label">Total</span>
+                <span className="font-medium">{formatCurrency(p.totalVenda)}</span>
+              </div>
+              <div className="mobile-card-row">
+                <span className="mobile-card-label">Etapa</span>
+                <Badge variant={et.variant}>{et.label}</Badge>
+              </div>
+              <div className="mobile-card-row">
+                <span className="mobile-card-label">Pagamento</span>
+                <Badge variant={pago ? "green" : "yellow"}>{pago ? "Realizado" : "Pendente"}</Badge>
+              </div>
+              <div className="mobile-card-row">
+                <span className="mobile-card-label">Data</span>
+                <span className="td-muted" style={{ fontSize: "0.8rem" }}>{formatDate(p.dataCompra)}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Detail panel */}

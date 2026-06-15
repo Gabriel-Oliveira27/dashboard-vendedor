@@ -1,5 +1,6 @@
 "use client";
 
+import { LogoIcon } from "@/components/ui/Logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme, THEMES } from "@/contexts/ThemeContext";
 import { API } from "@/lib/api";
@@ -68,7 +69,7 @@ export function Sidebar({ active, onNavigate, open }: SidebarProps) {
     <aside className={`sidebar ${open ? "open" : ""}`}>
       {/* Logo */}
       <div className="sidebar-header">
-        <div className="sidebar-logo-icon">T</div>
+        <div className="sidebar-logo-icon"><LogoIcon size={22} /></div>
         <span className="sidebar-logo-text">Tupper<strong>Store</strong></span>
       </div>
 
