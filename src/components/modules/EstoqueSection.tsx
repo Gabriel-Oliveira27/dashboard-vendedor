@@ -1,17 +1,13 @@
 "use client";
-
 import { useEffect, useState, useCallback, useRef } from "react";
 import { API } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { formatCurrency } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
-import { Input, Textarea, Select } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import type { Produto } from "@/types";
-import { Plus, Edit2, Trash2, Eye, Search, Package, RefreshCw, Bold, Italic, List } from "lucide-react";
 
 const LINHAS = ["FREEZER","AQUECER","CONSERVAR","PREPARAR","SERVIR","ARMAZENAR"];
 
@@ -34,13 +30,9 @@ export function EstoqueSection() {
     try {
       const res = await API.getEstoque();
       const list = Array.isArray(res) ? res : [];
-      setData(list);
-      setFiltered(list);
-    } catch (e: unknown) {
-      showToast((e as Error).message, "error");
-    } finally {
-      setLoading(false);
-    }
+      setData(list); setFiltered(list);
+    } catch (e: unknown) { showToast((e as Error).message, "error"); }
+    finally { setLoading(false); }
   }, [showToast]);
 
   useEffect(() => { load(); }, [load]);
@@ -59,174 +51,105 @@ export function EstoqueSection() {
     try {
       await API.deleteEstoque(deleteId);
       const next = data.filter((p) => p.id !== deleteId);
-      setData(next);
-      setFiltered(next);
+      setData(next); setFiltered(next);
       showToast("Produto excluído.", "success");
-    } catch (e: unknown) {
-      showToast((e as Error).message, "error");
-    } finally {
-      setDeleting(false);
-      setDeleteId(null);
-    }
+    } catch (e: unknown) { showToast((e as Error).message, "error"); }
+    finally { setDeleting(false); setDeleteId(null); }
   };
 
   const handleSaved = (saved: Produto, isNew: boolean) => {
-    const next = isNew
-      ? [saved, ...data]
-      : data.map((p) => (p.id === saved.id ? { ...p, ...saved } : p));
-    setData(next);
-    setFiltered(next);
+    const next = isNew ? [saved, ...data] : data.map((p) => p.id === saved.id ? { ...p, ...saved } : p);
+    setData(next); setFiltered(next);
     setEditingProduct(undefined);
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
-          <input
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Buscar produto…"
-            className="w-full h-[38px] bg-[var(--bg)] border border-[var(--border)] rounded-[var(--radius-md)] pl-8 pr-3 text-[0.875rem] text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--accent)]"
-          />
+    <div>
+      {/* Toolbar */}
+      <div className="section-header">
+        <div className="section-actions" style={{ flex: 1 }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <svg style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-dim)", pointerEvents: "none" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={search} onChange={(e) => handleSearch(e.target.value)} placeholder="Buscar produto…"
+              className="input-search" style={{ paddingLeft: "2rem", width: "100%" }} />
+          </div>
+          {podeEditar && (
+            <button className="btn btn-primary btn-sm" onClick={() => setEditingProduct(null)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Produto
+            </button>
+          )}
+          <button className="btn-icon" onClick={load} title="Atualizar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.8"/></svg>
+          </button>
         </div>
-        {podeEditar && (
-          <Button onClick={() => setEditingProduct(null)} size="sm">
-            <Plus size={14} /> Produto
-          </Button>
-        )}
-        <button onClick={load} className="p-2 rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors">
-          <RefreshCw size={14} />
-        </button>
       </div>
 
       {/* Table */}
-      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] overflow-hidden overflow-x-auto">
-        <table className="w-full border-collapse min-w-[640px]">
+      <div className="table-wrapper">
+        <table className="data-table">
           <thead>
-            <tr className="border-b border-[var(--border)]">
+            <tr>
               {["Foto","Produto","Linha","Litros","Cores","Qtd","Valor","Ações"].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-[0.07em] text-[var(--text-muted)] whitespace-nowrap">
-                  {h}
-                </th>
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <SkeletonRows rows={6} cols={8} />
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-12 text-[var(--text-dim)] text-[0.9rem]">Nenhum produto encontrado.</td></tr>
-            ) : (
-              filtered.map((p) => (
-                <EstoqueRow
-                  key={p.id}
-                  product={p}
-                  podeEditar={podeEditar}
-                  onEdit={() => setEditingProduct(p)}
-                  onDelete={() => setDeleteId(p.id)}
-                  onPreview={() => setPreviewProduct(p)}
-                />
-              ))
-            )}
+            {loading ? <SkeletonRows rows={6} cols={8} /> :
+             filtered.length === 0 ? (
+               <tr><td colSpan={8} className="empty-state">Nenhum produto encontrado.</td></tr>
+             ) : filtered.map((p) => {
+               const nome = p.produto || p.nome || "—";
+               const qtd = parseInt(String(p.qtd)) || 0;
+               return (
+                 <tr key={p.id} className="table-row">
+                   <td className="td-thumb">
+                     {p.imagem
+                       ? <img src={p.imagem} alt={nome} className="product-thumb" />
+                       : <div className="no-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="18" height="18"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+                     }
+                   </td>
+                   <td className="font-medium">{nome}</td>
+                   <td className="td-muted">{p.linha}</td>
+                   <td className="td-muted">{p.litros || "—"}</td>
+                   <td className="td-muted">{p.cores || "—"}</td>
+                   <td><Badge variant={qtd < 5 ? "red" : "green"}>{qtd}</Badge></td>
+                   <td className="font-medium">{formatCurrency(p.valor)}</td>
+                   <td>
+                     <div className="actions-cell">
+                       <button className="btn-icon" title="Preview" onClick={() => setPreviewProduct(p)}>
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                       </button>
+                       {podeEditar && <>
+                         <button className="btn-icon" title="Editar" onClick={() => setEditingProduct(p)}>
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                         </button>
+                         <button className="btn-icon btn-danger-icon" title="Excluir" onClick={() => setDeleteId(p.id)}>
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                         </button>
+                       </>}
+                     </div>
+                   </td>
+                 </tr>
+               );
+             })}
           </tbody>
         </table>
       </div>
 
-      {/* Edit/Create modal */}
       {editingProduct !== undefined && (
-        <ProductModal
-          product={editingProduct}
-          onClose={() => setEditingProduct(undefined)}
-          onSaved={handleSaved}
-          showToast={showToast}
-        />
+        <ProductModal product={editingProduct} onClose={() => setEditingProduct(undefined)} onSaved={handleSaved} showToast={showToast} />
       )}
-
-      {/* Preview modal */}
-      {previewProduct && (
-        <PreviewModal
-          product={previewProduct}
-          onClose={() => setPreviewProduct(null)}
-        />
-      )}
-
-      {/* Delete confirm */}
+      {previewProduct && <PreviewModal product={previewProduct} onClose={() => setPreviewProduct(null)} />}
       <ConfirmModal
-        open={deleteId !== null}
-        onClose={() => setDeleteId(null)}
-        onConfirm={handleDelete}
-        loading={deleting}
+        open={deleteId !== null} onClose={() => setDeleteId(null)} onConfirm={handleDelete} loading={deleting}
         message={`Excluir <strong>${data.find((p) => p.id === deleteId)?.produto || "este produto"}</strong>? Esta ação não pode ser desfeita.`}
       />
     </div>
   );
 }
 
-function EstoqueRow({ product: p, podeEditar, onEdit, onDelete, onPreview }: {
-  product: Produto;
-  podeEditar: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-  onPreview: () => void;
-}) {
-  const nome = p.produto || p.nome || "—";
-  const qtd  = parseInt(String(p.qtd)) || 0;
-  const baixo = qtd < 5;
-
-  return (
-    <tr className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)] transition-colors">
-      <td className="px-4 py-3 w-[52px]">
-        {p.imagem ? (
-          <img src={p.imagem} alt={nome} className="w-10 h-10 rounded-lg object-cover border border-[var(--border)]" />
-        ) : (
-          <div className="w-10 h-10 rounded-lg bg-[var(--bg)] border border-[var(--border)] flex items-center justify-center text-[var(--text-dim)]">
-            <Package size={18} />
-          </div>
-        )}
-      </td>
-      <td className="px-4 py-3 font-semibold text-[0.9rem]">{nome}</td>
-      <td className="px-4 py-3 text-[var(--text-muted)] text-[0.875rem]">{p.linha}</td>
-      <td className="px-4 py-3 text-[var(--text-muted)] text-[0.875rem]">{p.litros || "—"}</td>
-      <td className="px-4 py-3 text-[var(--text-muted)] text-[0.875rem]">{p.cores || "—"}</td>
-      <td className="px-4 py-3">
-        <Badge variant={baixo ? "red" : "green"}>{qtd}</Badge>
-      </td>
-      <td className="px-4 py-3 font-semibold text-[0.875rem]">{formatCurrency(p.valor)}</td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-1">
-          <IconBtn onClick={onPreview} title="Preview"><Eye size={15} /></IconBtn>
-          {podeEditar && <>
-            <IconBtn onClick={onEdit} title="Editar"><Edit2 size={15} /></IconBtn>
-            <IconBtn onClick={onDelete} title="Excluir" danger><Trash2 size={15} /></IconBtn>
-          </>}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-function IconBtn({ children, onClick, title, danger }: {
-  children: React.ReactNode; onClick: () => void; title?: string; danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className={`p-1.5 rounded-lg transition-colors text-[var(--text-muted)] ${
-        danger
-          ? "hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
-          : "hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-// ── Product Create/Edit Modal ─────────────────────────────────────────────────
 function ProductModal({ product, onClose, onSaved, showToast }: {
   product: Produto | null;
   onClose: () => void;
@@ -247,8 +170,7 @@ function ProductModal({ product, onClose, onSaved, showToast }: {
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   const applyMd = (type: string) => {
-    const ta = taRef.current;
-    if (!ta) return;
+    const ta = taRef.current; if (!ta) return;
     const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
     const sel = v.slice(s, e) || "texto";
     const map: Record<string, string> = { bold: `**${sel}**`, italic: `_${sel}_`, list: `\n- ${sel}` };
@@ -258,168 +180,108 @@ function ProductModal({ product, onClose, onSaved, showToast }: {
     setTimeout(() => { ta.focus(); ta.setSelectionRange(s + rep.length, s + rep.length); }, 0);
   };
 
-  const handleFileChange = (file: File) => {
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-  };
-
   const save = async () => {
     if (isNew && !nome.trim()) { showToast("Nome é obrigatório.", "warning"); return; }
-    const qtdN = parseInt(qtd);
-    const valorN = parseFloat(valor);
+    const qtdN = parseInt(qtd), valorN = parseFloat(valor);
     if (isNaN(qtdN) || qtdN < 0) { showToast("Quantidade inválida.", "warning"); return; }
     if (isNaN(valorN) || valorN < 0) { showToast("Valor inválido.", "warning"); return; }
-
     setSaving(true);
     let imagemUrl: string | null = null;
     if (imageFile) {
       try {
-        const fd = new FormData();
-        fd.append("file", imageFile);
+        const fd = new FormData(); fd.append("file", imageFile);
         const res = await API.uploadImagem(fd);
         imagemUrl = res?.url || null;
         if (!imagemUrl) throw new Error("URL não retornada.");
-      } catch (e: unknown) {
-        showToast("Erro no upload: " + (e as Error).message, "error");
-        setSaving(false);
-        return;
-      }
+      } catch (e: unknown) { showToast("Erro no upload: " + (e as Error).message, "error"); setSaving(false); return; }
     }
-
     try {
       if (isNew) {
-        const dados = { produto: nome, linha, litros, cores, qtd: qtdN, valor: valorN, imagem: imagemUrl || "", detalhes };
-        const novo = await API.createEstoque(dados);
-        showToast(`Produto "${nome}" criado!`, "success");
-        onSaved(novo, true);
+        const novo = await API.createEstoque({ produto: nome, linha, litros, cores, qtd: qtdN, valor: valorN, imagem: imagemUrl || "", detalhes });
+        showToast(`Produto "${nome}" criado!`, "success"); onSaved(novo, true);
       } else {
         const dados: Partial<Produto> = { qtd: qtdN, valor: valorN, detalhes };
         if (imagemUrl) dados.imagem = imagemUrl;
         const updated = await API.updateEstoque(product!.id, dados);
-        showToast("Produto atualizado!", "success");
-        onSaved({ ...product!, ...dados, ...(updated || {}) }, false);
+        showToast("Produto atualizado!", "success"); onSaved({ ...product!, ...dados, ...(updated || {}) }, false);
       }
-    } catch (e: unknown) {
-      showToast((e as Error).message, "error");
-    } finally {
-      setSaving(false);
-    }
+    } catch (e: unknown) { showToast((e as Error).message, "error"); }
+    finally { setSaving(false); }
   };
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title={isNew ? "Novo Produto" : "Editar Produto"}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={save} loading={saving}>
-            {isNew ? "Criar Produto" : "Salvar Alterações"}
-          </Button>
-        </>
-      }
-    >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Produto *" value={nome} onChange={(e) => setNome(e.target.value)} readOnly={!isNew} placeholder="Nome do produto" />
-        {isNew ? (
-          <Select label="Linha *" value={linha} onChange={(e) => setLinha(e.target.value)}>
-            {LINHAS.map((l) => <option key={l} value={l}>{l}</option>)}
-          </Select>
-        ) : (
-          <Input label="Linha" value={product?.linha || ""} readOnly />
-        )}
-        <Input label="Litros" value={litros} onChange={(e) => setLitros(e.target.value)} readOnly={!isNew} placeholder="Ex: 1.5L" />
-        <Input label="Cores" value={cores} onChange={(e) => setCores(e.target.value)} readOnly={!isNew} placeholder="Azul, Rosa" />
-        <Input label="Quantidade *" type="number" min="0" value={qtd} onChange={(e) => setQtd(e.target.value)} />
-        <Input label="Valor (R$) *" type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} />
+    <Modal open onClose={onClose} title={isNew ? "Novo Produto" : "Editar Produto"}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Salvando…" : (isNew ? "Criar Produto" : "Salvar Alterações")}</button></>}>
+      <div className="form-grid-2">
+        <div className="form-group"><label>Produto *</label><input className="input-field" value={nome} onChange={(e) => setNome(e.target.value)} readOnly={!isNew} placeholder="Nome do produto" /></div>
+        {isNew
+          ? <div className="form-group"><label>Linha *</label><select className="input-select" value={linha} onChange={(e) => setLinha(e.target.value)}>{LINHAS.map((l) => <option key={l} value={l}>{l}</option>)}</select></div>
+          : <div className="form-group"><label>Linha</label><input className="input-field" value={product?.linha || ""} readOnly /></div>
+        }
+        <div className="form-group"><label>Litros</label><input className="input-field" value={litros} onChange={(e) => setLitros(e.target.value)} readOnly={!isNew} placeholder="Ex: 1.5L" /></div>
+        <div className="form-group"><label>Cores</label><input className="input-field" value={cores} onChange={(e) => setCores(e.target.value)} readOnly={!isNew} placeholder="Azul, Rosa" /></div>
+        <div className="form-group"><label>Quantidade *</label><input className="input-field" type="number" min="0" value={qtd} onChange={(e) => setQtd(e.target.value)} /></div>
+        <div className="form-group"><label>Valor (R$) *</label><input className="input-field" type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} /></div>
       </div>
 
       {/* Image */}
-      <div className="flex flex-col gap-2">
-        <label className="text-[0.78rem] font-semibold text-[var(--text-muted)] uppercase tracking-[0.06em]">Imagem</label>
-        {imagePreview && (
-          <img src={imagePreview} alt="" className="h-20 object-contain rounded-lg border border-[var(--border)] self-start" />
-        )}
-        <label className="flex items-center gap-2 px-3 py-2.5 bg-[var(--bg)] border border-dashed border-[var(--border)] rounded-[var(--radius-md)] cursor-pointer hover:border-[var(--accent)] transition-colors text-[0.875rem] text-[var(--text-muted)]">
-          <Package size={16} />
-          {imagePreview ? "Trocar imagem" : "Selecionar imagem"}
-          <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])} />
+      <div className="form-group">
+        <label>Imagem</label>
+        {imagePreview && <img src={imagePreview} alt="" style={{ maxHeight: "80px", objectFit: "contain", borderRadius: "8px", border: "1px solid var(--border)", marginBottom: "0.5rem" }} />}
+        <label className="image-upload-area" style={{ minHeight: "64px" }}>
+          <span className="image-placeholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            {imagePreview ? "Trocar imagem" : "Selecionar imagem"}
+          </span>
+          <input type="file" accept="image/*" className="input-file" onChange={(e) => {
+            const f = e.target.files?.[0]; if (!f) return;
+            setImageFile(f);
+            const r = new FileReader(); r.onload = (ev) => setImagePreview(ev.target?.result as string); r.readAsDataURL(f);
+          }} />
         </label>
       </div>
 
-      {/* Description with Markdown toolbar */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[0.78rem] font-semibold text-[var(--text-muted)] uppercase tracking-[0.06em]">Descrição / Características</label>
-        <div className="flex gap-1 flex-wrap mb-1">
-          {[
-            { type: "bold",   icon: <Bold size={12} />,   label: "Negrito" },
-            { type: "italic", icon: <Italic size={12} />, label: "Itálico" },
-            { type: "list",   icon: <List size={12} />,   label: "Lista"   },
-          ].map((btn) => (
-            <button
-              key={btn.type}
-              type="button"
-              onClick={() => applyMd(btn.type)}
-              title={btn.label}
-              className="h-7 px-2.5 rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)] text-[0.78rem] font-semibold hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors flex items-center gap-1"
-            >
-              {btn.icon} {btn.label}
-            </button>
-          ))}
+      {/* Description */}
+      <div className="form-group">
+        <label>Descrição / Características</label>
+        <div className="md-toolbar">
+          <button type="button" onClick={() => applyMd("bold")}><strong>N</strong></button>
+          <button type="button" onClick={() => applyMd("italic")}><em>I</em></button>
+          <button type="button" onClick={() => applyMd("list")}>• Lista</button>
         </div>
-        <Textarea
-          ref={taRef}
-          value={detalhes}
-          onChange={(e) => setDetalhes(e.target.value)}
-          rows={5}
-          placeholder="Suporta **negrito**, _itálico_, - listas..."
-          hint="Markdown suportado."
-        />
+        <textarea ref={taRef} className="input-field" value={detalhes} onChange={(e) => setDetalhes(e.target.value)}
+          rows={5} placeholder="Suporta **negrito**, _itálico_, - listas…" style={{ minHeight: "110px" }} />
+        <span className="field-hint">Markdown suportado.</span>
       </div>
-      {!isNew && <p className="text-[0.78rem] text-[var(--text-dim)]">Somente Quantidade, Valor, Imagem e Detalhes podem ser editados.</p>}
+      {!isNew && <p className="field-hint">Somente Quantidade, Valor, Imagem e Detalhes podem ser editados.</p>}
     </Modal>
   );
 }
 
-// ── Preview Modal ────────────────────────────────────────────────────────────
 function PreviewModal({ product: p, onClose }: { product: Produto; onClose: () => void }) {
   const nome = p.produto || p.nome || "—";
   const preco = parseFloat(String(p.valor)) || 0;
   const qtd = parseInt(String(p.qtd)) || 0;
-  const sub = [p.linha, p.litros].filter(Boolean).join(" · ");
-
   return (
     <Modal open onClose={onClose} title="Preview — Card da Loja" maxWidth="max-w-[300px]">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-60 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[16px] overflow-hidden">
-          <div className="relative">
-            {p.imagem ? (
-              <img src={p.imagem} alt={nome} className="w-full aspect-square object-cover" />
-            ) : (
-              <div className="w-full aspect-square flex items-center justify-center bg-[var(--bg)] text-[var(--text-dim)]">
-                <Package size={40} />
-              </div>
-            )}
-            {qtd <= 5 && (
-              <span className="absolute top-2 left-2 bg-[var(--danger)] text-white text-[0.6rem] font-bold px-2 py-0.5 rounded-full">
-                Últimas unidades
-              </span>
-            )}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+        <div style={{ width: "240px", background: "var(--surface-alt)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
+          <div style={{ position: "relative" }}>
+            {p.imagem
+              ? <img src={p.imagem} alt={nome} style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
+              : <div style={{ width: "100%", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", color: "var(--text-dim)" }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+            }
+            {qtd <= 5 && <span style={{ position: "absolute", top: "8px", left: "8px", background: "var(--danger)", color: "#fff", fontSize: "0.6rem", fontWeight: 700, padding: "2px 8px", borderRadius: "99px" }}>Últimas unidades</span>}
           </div>
-          <div className="p-3">
-            <p className="font-semibold text-[0.9rem] leading-snug mb-1">{nome}</p>
-            {sub && <p className="text-[0.75rem] text-[var(--text-muted)] mb-1.5">{sub}</p>}
-            <p className="text-[var(--accent)] font-bold text-[1.05rem] mb-1">R$ {preco.toFixed(2)}</p>
-            <p className="text-[0.75rem] text-[var(--text-muted)] mb-2">{qtd} em estoque</p>
-            <div className="bg-[var(--accent)] opacity-50 text-white text-center text-[0.82rem] font-semibold py-1.5 rounded-lg cursor-not-allowed">
-              Adicionar ao Carrinho
-            </div>
+          <div style={{ padding: "0.75rem" }}>
+            <p style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.25rem" }}>{nome}</p>
+            {p.linha && <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.35rem" }}>{p.linha}{p.litros ? ` · ${p.litros}` : ""}</p>}
+            <p style={{ color: "var(--accent)", fontWeight: 700, fontSize: "1.05rem", marginBottom: "0.25rem" }}>R$ {preco.toFixed(2)}</p>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>{qtd} em estoque</p>
+            <div style={{ background: "var(--accent)", opacity: 0.5, color: "#fff", textAlign: "center", fontSize: "0.82rem", fontWeight: 600, padding: "6px", borderRadius: "8px" }}>Adicionar ao Carrinho</div>
           </div>
         </div>
-        <p className="text-[0.72rem] text-[var(--text-dim)]">Visualização aproximada.</p>
+        <p style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>Visualização aproximada.</p>
       </div>
     </Modal>
   );

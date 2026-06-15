@@ -1,52 +1,28 @@
 "use client";
-
 import { useToast } from "@/contexts/ToastContext";
-import { CheckCircle, XCircle, AlertTriangle, Info, X } from "lucide-react";
 
 const META = {
-  success: { Icon: CheckCircle, color: "var(--success)", bg: "var(--success-soft)", title: "Sucesso",    border: "var(--success)" },
-  error:   { Icon: XCircle,     color: "var(--danger)",  bg: "var(--danger-soft)",  title: "Erro",       border: "var(--danger)"  },
-  warning: { Icon: AlertTriangle,color:"var(--warning)", bg: "var(--warning-soft)", title: "Atenção",    border: "var(--warning)" },
-  info:    { Icon: Info,        color: "var(--info)",    bg: "var(--info-soft)",    title: "Informação", border: "var(--info)"    },
+  success: { cls: "toast-success", title: "Sucesso",    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> },
+  error:   { cls: "toast-error",   title: "Erro",       icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> },
+  warning: { cls: "toast-warning", title: "Atenção",    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> },
+  info:    { cls: "toast-info",    title: "Informação", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> },
 } as const;
 
 export function ToastContainer() {
   const { toasts, dismiss } = useToast();
-
   return (
-    <div className="fixed top-4 right-4 z-[600] flex flex-col gap-2.5 pointer-events-none w-[calc(100%-2rem)] max-w-[360px]">
-      {toasts.map((toast) => {
-        const m = META[toast.type];
+    <div className="toast-container">
+      {toasts.map((t) => {
+        const m = META[t.type];
         return (
-          <div
-            key={toast.id}
-            className="flex items-start gap-3 px-4 py-3.5 rounded-[var(--radius-md)] pointer-events-auto toast-enter"
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderLeft: `3px solid ${m.border}`,
-              boxShadow: "0 4px 24px rgba(0,0,0,.25), 0 1px 4px rgba(0,0,0,.1)",
-            }}
-          >
-            <div
-              className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 mt-[1px]"
-              style={{ background: m.bg, color: m.color }}
-            >
-              <m.Icon size={13} strokeWidth={2.5} />
+          <div key={t.id} className={`toast ${m.cls}`}>
+            <div className="toast-icon">{m.icon}</div>
+            <div className="toast-body">
+              <div className="toast-title">{m.title}</div>
+              <div className="toast-msg">{t.message}</div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[0.78rem] font-bold text-[var(--text)] uppercase tracking-[0.04em] mb-0.5">
-                {m.title}
-              </p>
-              <p className="text-[0.875rem] text-[var(--text-muted)] leading-snug break-words">
-                {toast.message}
-              </p>
-            </div>
-            <button
-              onClick={() => dismiss(toast.id)}
-              className="p-1 rounded text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors shrink-0"
-            >
-              <X size={14} />
+            <button className="toast-close" onClick={() => dismiss(t.id)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         );

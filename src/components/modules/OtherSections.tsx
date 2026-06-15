@@ -1,21 +1,15 @@
 "use client";
-
 import { useEffect, useState, useCallback } from "react";
 import { API } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { formatCurrency, isToday, isThisMonth } from "@/lib/utils";
+import { formatCurrency, isThisMonth } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { SkeletonRows } from "@/components/ui/Skeleton";
-import type { Cupom, ConfigVendas, Pedido, Produto, Usuario } from "@/types";
-import { Plus, Trash2, RefreshCw, Save, Tag, Percent, TrendingUp, Calendar, Target } from "lucide-react";
+import type { Cupom, ConfigVendas, Pedido, Usuario } from "@/types";
 
-// ══════════════════════════════════════════════════════════════════════════════
-// CUPONS
-// ══════════════════════════════════════════════════════════════════════════════
+// ══ CUPONS ═══════════════════════════════════════════════════════════════════
 export function CuponsSection() {
   const { isAdmin, canEdit } = useAuth();
   const { showToast } = useToast();
@@ -24,103 +18,79 @@ export function CuponsSection() {
   const [newOpen, setNewOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [codigo, setCodigo] = useState("");
-  const [desconto, setDesconto] = useState("");
-  const [usos, setUsos] = useState("");
+  const [codigo, setCodigo] = useState(""); const [desconto, setDesconto] = useState(""); const [usos, setUsos] = useState("");
   const [saving, setSaving] = useState(false);
-
   const podeEditar = isAdmin() || canEdit("cupons");
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const res = await API.getCupons();
-      setData(Array.isArray(res) ? res : []);
-    } catch (e: unknown) { showToast((e as Error).message, "error"); }
+    try { const r = await API.getCupons(); setData(Array.isArray(r) ? r : []); }
+    catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setLoading(false); }
   }, [showToast]);
-
   useEffect(() => { load(); }, [load]);
 
-  const createCupom = async () => {
+  const create = async () => {
     if (!codigo.trim() || !desconto.trim() || !usos) { showToast("Preencha todos os campos.", "warning"); return; }
-    const usosN = parseInt(usos);
-    if (isNaN(usosN) || usosN < 1) { showToast("Quantidade de usos inválida.", "warning"); return; }
+    const usosN = parseInt(usos); if (isNaN(usosN) || usosN < 1) { showToast("Usos inválido.", "warning"); return; }
     setSaving(true);
     try {
-      const novo = await API.createCupom({ cupom: codigo.toUpperCase(), desconto: parseFloat(desconto) || 0, quantidadeUsos: usosN });
-      setData((prev) => [novo, ...prev]);
-      showToast(`Cupom "${codigo}" criado!`, "success");
+      const n = await API.createCupom({ cupom: codigo.toUpperCase(), desconto: parseFloat(desconto) || 0, quantidadeUsos: usosN });
+      setData((p) => [n, ...p]); showToast(`Cupom criado!`, "success");
       setNewOpen(false); setCodigo(""); setDesconto(""); setUsos("");
     } catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setSaving(false); }
   };
 
-  const deleteCupom = async () => {
-    if (!deleteId) return;
-    setDeleting(true);
-    try {
-      await API.deleteCupom(deleteId);
-      setData((prev) => prev.filter((c) => c.id !== deleteId));
-      showToast("Cupom excluído.", "success");
-    } catch (e: unknown) { showToast((e as Error).message, "error"); }
+  const del = async () => {
+    if (!deleteId) return; setDeleting(true);
+    try { await API.deleteCupom(deleteId); setData((p) => p.filter((c) => c.id !== deleteId)); showToast("Cupom excluído.", "success"); }
+    catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setDeleting(false); setDeleteId(null); }
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        {podeEditar && <Button size="sm" onClick={() => setNewOpen(true)}><Plus size={14} /> Novo Cupom</Button>}
-        <button onClick={load} className="p-2 rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors"><RefreshCw size={14} /></button>
+    <div>
+      <div className="section-header">
+        <div className="section-actions">
+          {podeEditar && <button className="btn btn-primary btn-sm" onClick={() => setNewOpen(true)}>+ Novo Cupom</button>}
+          <button className="btn-icon" onClick={load}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.8"/></svg></button>
+        </div>
       </div>
-
-      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] overflow-hidden overflow-x-auto">
-        <table className="w-full border-collapse min-w-[400px]">
-          <thead><tr className="border-b border-[var(--border)]">
-            {["Código","Desconto","Usos","Ação"].map((h) => (
-              <th key={h} className="px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-[0.07em] text-[var(--text-muted)]">{h}</th>
-            ))}
-          </tr></thead>
+      <div className="table-wrapper">
+        <table className="data-table">
+          <thead><tr>{["Código","Desconto","Usos","Ação"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
           <tbody>
             {loading ? <SkeletonRows rows={4} cols={4} /> :
-             data.length === 0 ? (
-               <tr><td colSpan={4} className="text-center py-12 text-[var(--text-dim)] text-[0.9rem]">Nenhum cupom cadastrado.</td></tr>
-             ) : data.map((c) => {
+             data.length === 0 ? <tr><td colSpan={4} className="empty-state">Nenhum cupom cadastrado.</td></tr> :
+             data.map((c) => {
                const cod = c.cupom || c.codigo || "—";
-               const usos = parseInt(String(c.quantidadeUsos ?? c.usosRestantes)) || 0;
+               const u = parseInt(String(c.quantidadeUsos ?? c.usosRestantes)) || 0;
                return (
-                 <tr key={c.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)] transition-colors">
-                   <td className="px-4 py-3"><code className="font-mono text-[0.8rem] bg-[var(--bg)] px-2 py-0.5 rounded border border-[var(--border)] text-[var(--accent)]">{cod}</code></td>
-                   <td className="px-4 py-3 text-[0.875rem]">{c.desconto}</td>
-                   <td className="px-4 py-3"><Badge variant={usos <= 0 ? "red" : "green"}>{usos <= 0 ? "Esgotado" : `${usos} uso(s)`}</Badge></td>
-                   <td className="px-4 py-3">
-                     {podeEditar ? (
-                       <button onClick={() => setDeleteId(c.id)} className="p-1.5 rounded text-[var(--text-muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] transition-colors"><Trash2 size={15} /></button>
-                     ) : <span className="text-[var(--text-muted)] text-[0.78rem]">—</span>}
-                   </td>
+                 <tr key={c.id} className="table-row">
+                   <td><code className="code-badge">{cod}</code></td>
+                   <td className="td-muted">{c.desconto}</td>
+                   <td><Badge variant={u <= 0 ? "red" : "green"}>{u <= 0 ? "Esgotado" : `${u} uso(s)`}</Badge></td>
+                   <td>{podeEditar ? <button className="btn-icon btn-danger-icon" onClick={() => setDeleteId(c.id)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button> : <span className="td-muted">—</span>}</td>
                  </tr>
                );
              })}
           </tbody>
         </table>
       </div>
-
       <Modal open={newOpen} onClose={() => setNewOpen(false)} title="Novo Cupom"
-        footer={<><Button variant="ghost" onClick={() => setNewOpen(false)}>Cancelar</Button><Button onClick={createCupom} loading={saving}>Criar Cupom</Button></>}>
-        <Input label="Código *" value={codigo} onChange={(e) => setCodigo(e.target.value.toUpperCase())} placeholder="EX: DESCONTO10" />
-        <Input label="Desconto *" value={desconto} onChange={(e) => setDesconto(e.target.value)} placeholder='Ex: "10" para 10% ou "frete grátis"' />
-        <Input label="Quantidade de Usos *" type="number" min="1" value={usos} onChange={(e) => setUsos(e.target.value)} placeholder="Ex: 100" />
+        footer={<><button className="btn btn-ghost" onClick={() => setNewOpen(false)}>Cancelar</button><button className="btn btn-primary" onClick={create} disabled={saving}>{saving ? "Criando…" : "Criar Cupom"}</button></>}>
+        <div className="form-group"><label>Código *</label><input className="input-field" value={codigo} onChange={(e) => setCodigo(e.target.value.toUpperCase())} placeholder="EX: DESCONTO10" /></div>
+        <div className="form-group"><label>Desconto *</label><input className="input-field" value={desconto} onChange={(e) => setDesconto(e.target.value)} placeholder='Ex: "10" para 10% ou "frete grátis"' /></div>
+        <div className="form-group"><label>Quantidade de Usos *</label><input className="input-field" type="number" min="1" value={usos} onChange={(e) => setUsos(e.target.value)} placeholder="Ex: 100" /></div>
       </Modal>
-
-      <ConfirmModal open={deleteId !== null} onClose={() => setDeleteId(null)} onConfirm={deleteCupom} loading={deleting}
-        message={`Excluir o cupom <strong>${data.find((c) => c.id === deleteId)?.cupom || deleteId}</strong>? Esta ação não pode ser desfeita.`} />
+      <ConfirmModal open={deleteId !== null} onClose={() => setDeleteId(null)} onConfirm={del} loading={deleting}
+        message={`Excluir o cupom <strong>${data.find((c) => c.id === deleteId)?.cupom || deleteId}</strong>?`} />
     </div>
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// CONFIG
-// ══════════════════════════════════════════════════════════════════════════════
+// ══ CONFIG ════════════════════════════════════════════════════════════════════
 export function ConfigSection() {
   const { isAdmin, canEdit } = useAuth();
   const { showToast } = useToast();
@@ -129,108 +99,80 @@ export function ConfigSection() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<ConfigVendas>({});
-
   const podeEditar = isAdmin() || canEdit("config");
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const res = await API.getConfigVendas(); setCfg(res || {}); }
+    try { const r = await API.getConfigVendas(); setCfg(r || {}); }
     catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setLoading(false); }
   }, [showToast]);
-
   useEffect(() => { load(); }, [load]);
-
-  const startEdit = () => { setForm({ ...cfg }); setEditing(true); };
 
   const save = async () => {
     setSaving(true);
     try {
       await Promise.all([
         API.updateConfigVendas({ pix: form.pix || "", whatsapp: form.whatsapp || "" }),
-        API.setConfigKey("WHATSAPP_ATIVO",    form.WHATSAPP_ATIVO    || "true"),
-        API.setConfigKey("PAGAMENTO_PIX",     form.PAGAMENTO_PIX     || "true"),
-        API.setConfigKey("PAGAMENTO_CREDITO", form.PAGAMENTO_CREDITO || "true"),
-        API.setConfigKey("PAGAMENTO_DINHEIRO",form.PAGAMENTO_DINHEIRO|| "true"),
-        API.setConfigKey("ORIGEM_ENDERECO",   form.ORIGEM_ENDERECO   || ""),
-        API.setConfigKey("ORIGEM_CEP",        form.ORIGEM_CEP        || ""),
-        API.setConfigKey("ORIGEM_LAT",        form.ORIGEM_LAT        || ""),
-        API.setConfigKey("ORIGEM_LON",        form.ORIGEM_LON        || ""),
+        API.setConfigKey("WHATSAPP_ATIVO",     form.WHATSAPP_ATIVO    || "true"),
+        API.setConfigKey("PAGAMENTO_PIX",      form.PAGAMENTO_PIX     || "true"),
+        API.setConfigKey("PAGAMENTO_CREDITO",  form.PAGAMENTO_CREDITO || "true"),
+        API.setConfigKey("PAGAMENTO_DINHEIRO", form.PAGAMENTO_DINHEIRO|| "true"),
       ]);
-      setCfg({ ...cfg, ...form });
-      showToast("Configurações salvas!", "success");
-      setEditing(false);
+      setCfg({ ...cfg, ...form }); showToast("Configurações salvas!", "success"); setEditing(false);
     } catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setSaving(false); }
   };
 
-  if (loading) return <div className="skeleton h-[200px] rounded-[var(--radius-lg)]" />;
+  if (loading) return <div className="skeleton-line" style={{ height: "80px", borderRadius: "var(--radius-lg)" }} />;
 
   const Toggle = ({ field }: { field: string }) => (
-    <label className="flex items-center gap-2 cursor-pointer">
-      <div className="relative">
-        <input type="checkbox" className="sr-only"
-          checked={form[field] !== "false"}
-          onChange={(e) => setForm((p) => ({ ...p, [field]: e.target.checked ? "true" : "false" }))} />
-        <div className={`w-11 h-6 rounded-full transition-colors ${form[field] !== "false" ? "bg-[var(--accent)]" : "bg-[var(--border)]"}`} />
-        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${form[field] !== "false" ? "translate-x-5" : ""}`} />
-      </div>
+    <label className="cfg-toggle">
+      <input type="checkbox" checked={form[field] !== "false"} onChange={(e) => setForm((p) => ({ ...p, [field]: e.target.checked ? "true" : "false" }))} />
+      <div className="cfg-toggle-track"><div className="cfg-toggle-thumb" /></div>
     </label>
   );
 
   return (
-    <div className="flex flex-col gap-4 max-w-[620px]">
+    <div style={{ maxWidth: "620px", display: "flex", flexDirection: "column", gap: "1rem" }}>
       {!editing ? (
         <>
-          <Card icon="💳" label="Chave PIX" value={cfg.pix || "Não configurada"} />
-          <Card icon="💬" label="WhatsApp"  value={cfg.whatsapp || "Não configurado"} />
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 flex flex-wrap gap-2 items-center">
-            <span className="text-[0.75rem] font-bold uppercase tracking-wide text-[var(--text-muted)] mr-2">Métodos de Pagamento</span>
+          <div className="pix-card"><div className="pix-icon">💳</div><div><span className="pix-label">Chave PIX</span><span className="pix-value">{cfg.pix || "Não configurada"}</span></div></div>
+          <div className="pix-card"><div className="pix-icon">💬</div><div><span className="pix-label">WhatsApp</span><span className="pix-value">{cfg.whatsapp || "Não configurado"}</span></div></div>
+          <div className="pix-card" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
+            <span className="pix-label" style={{ display: "block", width: "100%" }}>Métodos de Pagamento</span>
             <Badge variant={cfg.PAGAMENTO_PIX !== "false" ? "green" : "gray"}>PIX</Badge>
             <Badge variant={cfg.PAGAMENTO_CREDITO !== "false" ? "green" : "gray"}>Crédito</Badge>
             <Badge variant={cfg.PAGAMENTO_DINHEIRO !== "false" ? "green" : "gray"}>Dinheiro</Badge>
           </div>
-          {podeEditar && <Button onClick={startEdit} className="self-start"><Save size={16} /> Editar Configurações</Button>}
+          {podeEditar && <button className="btn btn-primary" style={{ alignSelf: "flex-start" }} onClick={() => { setForm({ ...cfg }); setEditing(true); }}>Editar Configurações</button>}
         </>
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 sm:p-5 flex flex-col gap-4">
-            <Input label="Chave PIX" value={form.pix || ""} onChange={(e) => setForm((p) => ({ ...p, pix: e.target.value }))} placeholder="CPF, e-mail, telefone ou chave aleatória" />
-            <Input label="WhatsApp (só números)" value={form.whatsapp || ""} onChange={(e) => setForm((p) => ({ ...p, whatsapp: e.target.value.replace(/\D/g,"") }))} placeholder="5588999990000" />
+        <>
+          <div className="pix-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "1rem" }}>
+            <div className="form-group"><label>Chave PIX</label><input className="input-field" value={form.pix || ""} onChange={(e) => setForm((p) => ({ ...p, pix: e.target.value }))} placeholder="CPF, e-mail, telefone ou chave aleatória" /></div>
+            <div className="form-group"><label>WhatsApp (só números)</label><input className="input-field" value={form.whatsapp || ""} onChange={(e) => setForm((p) => ({ ...p, whatsapp: e.target.value.replace(/\D/g,"") }))} placeholder="5588999990000" /></div>
           </div>
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 flex flex-col gap-3">
-            <p className="text-[0.75rem] font-bold uppercase tracking-wide text-[var(--text-muted)]">Métodos de Pagamento</p>
-            {["PAGAMENTO_PIX","PAGAMENTO_CREDITO","PAGAMENTO_DINHEIRO"].map((f) => (
-              <div key={f} className="flex items-center justify-between">
-                <span className="text-[0.875rem]">{f.replace("PAGAMENTO_","").replace("PIX","PIX").replace("CREDITO","Cartão de Crédito").replace("DINHEIRO","Dinheiro")}</span>
-                <Toggle field={f} />
+          <div className="pix-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "0.75rem" }}>
+            <span className="cfg-section-label">Métodos de Pagamento</span>
+            {[["PAGAMENTO_PIX","PIX"],["PAGAMENTO_CREDITO","Cartão de Crédito"],["PAGAMENTO_DINHEIRO","Dinheiro"]].map(([f,l]) => (
+              <div key={f} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "0.875rem" }}>{l}</span><Toggle field={f} />
               </div>
             ))}
           </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="ghost" onClick={() => setEditing(false)}>Cancelar</Button>
-            <Button onClick={save} loading={saving}><Save size={16} /> Salvar</Button>
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+            <button className="btn btn-ghost" onClick={() => setEditing(false)}>Cancelar</button>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</button>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
 }
 
-function Card({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 flex items-center gap-4">
-      <span className="text-2xl">{icon}</span>
-      <div><p className="text-[0.72rem] font-bold uppercase tracking-wide text-[var(--text-muted)]">{label}</p><p className="font-semibold text-[1rem]">{value}</p></div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// DESCONTOS
-// ══════════════════════════════════════════════════════════════════════════════
-const LINHAS_DESCONTO = ["FREEZER","AQUECER","CONSERVAR","PREPARAR","SERVIR","ARMAZENAR"];
-
+// ══ DESCONTOS ════════════════════════════════════════════════════════════════
+const LINHAS_D = ["FREEZER","AQUECER","CONSERVAR","PREPARAR","SERVIR","ARMAZENAR"];
 export function DescontosSection() {
   const { isAdmin, canEdit } = useAuth();
   const { showToast } = useToast();
@@ -239,84 +181,59 @@ export function DescontosSection() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string,string>>({});
   const [saving, setSaving] = useState(false);
-
   const podeEditar = isAdmin() || canEdit("config");
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const res = await API.getConfigVendas(); setCfg(res || {}); }
+    try { const r = await API.getConfigVendas(); setCfg(r || {}); }
     catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setLoading(false); }
   }, [showToast]);
-
   useEffect(() => { load(); }, [load]);
-
-  const startEdit = () => {
-    const f: Record<string,string> = { DESCONTO_GLOBAL: String(cfg.DESCONTO_GLOBAL || "0") };
-    LINHAS_DESCONTO.forEach((l) => { f[`DESCONTO_LINHA_${l}`] = String(cfg[`DESCONTO_LINHA_${l}`] || "0"); });
-    setForm(f); setEditing(true);
-  };
 
   const save = async () => {
     setSaving(true);
-    try {
-      await Promise.all(Object.entries(form).map(([k,v]) => API.setConfigKey(k, v)));
-      setCfg((prev) => ({ ...prev, ...form }));
-      showToast("Descontos salvos!", "success");
-      setEditing(false);
-    } catch (e: unknown) { showToast((e as Error).message, "error"); }
+    try { await Promise.all(Object.entries(form).map(([k,v]) => API.setConfigKey(k,v))); setCfg((p) => ({ ...p, ...form })); showToast("Descontos salvos!", "success"); setEditing(false); }
+    catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setSaving(false); }
   };
 
-  if (loading) return <div className="skeleton h-[200px] rounded-[var(--radius-lg)]" />;
+  if (loading) return <div className="skeleton-line" style={{ height: "80px", borderRadius: "var(--radius-lg)" }} />;
 
   return (
-    <div className="flex flex-col gap-4 max-w-[560px]">
-      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 sm:p-5 flex flex-col gap-3">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-11 h-11 rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center shrink-0"><Percent size={20} /></div>
+    <div style={{ maxWidth: "560px", display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div className="pix-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "0.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div className="card-icon icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div>
           <div>
-            <p className="text-[0.72rem] font-bold uppercase tracking-wide text-[var(--text-muted)]">Desconto Global</p>
-            <p className="font-semibold text-[1rem]">{parseInt(String(cfg.DESCONTO_GLOBAL)) > 0 ? `${cfg.DESCONTO_GLOBAL}% em toda a loja` : "Sem desconto global"}</p>
+            <span className="card-label">Desconto Global</span>
+            <div style={{ fontWeight: 600 }}>{parseInt(String(cfg.DESCONTO_GLOBAL)) > 0 ? `${cfg.DESCONTO_GLOBAL}% em toda a loja` : "Sem desconto global"}</div>
           </div>
         </div>
-        <div className="border-t border-[var(--border)] pt-3 flex flex-col divide-y divide-[var(--border)]">
-          {LINHAS_DESCONTO.map((l) => {
+        <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
+          {LINHAS_D.map((l) => {
             const v = parseInt(String(cfg[`DESCONTO_LINHA_${l}`])) || 0;
-            return (
-              <div key={l} className="flex items-center justify-between py-2">
-                <span className="text-[0.875rem] font-medium">{l}</span>
-                <Badge variant={v > 0 ? "purple" : "gray"}>{v > 0 ? `${v}%` : "Sem desconto"}</Badge>
-              </div>
-            );
+            return <div key={l} className="frete-row-view"><span>{l}</span><Badge variant={v > 0 ? "purple" : "gray"}>{v > 0 ? `${v}%` : "Sem desconto"}</Badge></div>;
           })}
         </div>
       </div>
-
-      {podeEditar && !editing && <Button onClick={startEdit} className="self-start"><Percent size={16} /> Editar Descontos</Button>}
-
+      {podeEditar && !editing && <button className="btn btn-primary" style={{ alignSelf: "flex-start" }} onClick={() => { const f: Record<string,string> = { DESCONTO_GLOBAL: String(cfg.DESCONTO_GLOBAL || "0") }; LINHAS_D.forEach((l) => { f[`DESCONTO_LINHA_${l}`] = String(cfg[`DESCONTO_LINHA_${l}`] || "0"); }); setForm(f); setEditing(true); }}>Editar Descontos</button>}
       {editing && (
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 sm:p-5 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <input type="number" min="0" max="100" value={form.DESCONTO_GLOBAL}
-              onChange={(e) => setForm((p) => ({ ...p, DESCONTO_GLOBAL: e.target.value }))}
-              className="h-[36px] w-20 bg-[var(--bg)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 text-[0.875rem] text-right focus:outline-none focus:border-[var(--accent)]" />
-            <span className="text-[var(--text-muted)]">% — Desconto global</span>
+        <div className="pix-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "0.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <input type="number" min="0" max="100" value={form.DESCONTO_GLOBAL} onChange={(e) => setForm((p) => ({ ...p, DESCONTO_GLOBAL: e.target.value }))} className="input-field" style={{ maxWidth: "80px", textAlign: "right" }} />
+            <span style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>% — Desconto global</span>
           </div>
-          <div className="flex flex-col divide-y divide-[var(--border)]">
-            {LINHAS_DESCONTO.map((l) => (
-              <div key={l} className="flex items-center gap-3 py-2">
-                <span className="flex-1 text-[0.875rem] font-medium">{l}</span>
-                <input type="number" min="0" max="100" value={form[`DESCONTO_LINHA_${l}`] || "0"}
-                  onChange={(e) => setForm((p) => ({ ...p, [`DESCONTO_LINHA_${l}`]: e.target.value }))}
-                  className="h-[36px] w-20 bg-[var(--bg)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 text-[0.875rem] text-right focus:outline-none focus:border-[var(--accent)]" />
-                <span className="text-[var(--text-muted)] text-[0.85rem]">%</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="ghost" onClick={() => setEditing(false)}>Cancelar</Button>
-            <Button onClick={save} loading={saving}><Save size={16} /> Salvar</Button>
+          {LINHAS_D.map((l) => (
+            <div key={l} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500 }}>{l}</span>
+              <input type="number" min="0" max="100" value={form[`DESCONTO_LINHA_${l}`] || "0"} onChange={(e) => setForm((p) => ({ ...p, [`DESCONTO_LINHA_${l}`]: e.target.value }))} className="input-field" style={{ maxWidth: "80px", textAlign: "right" }} />
+              <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>%</span>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+            <button className="btn btn-ghost" onClick={() => setEditing(false)}>Cancelar</button>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</button>
           </div>
         </div>
       )}
@@ -324,9 +241,7 @@ export function DescontosSection() {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// RELATÓRIO
-// ══════════════════════════════════════════════════════════════════════════════
+// ══ RELATÓRIO ════════════════════════════════════════════════════════════════
 export function RelatorioSection() {
   const { showToast } = useToast();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -334,96 +249,68 @@ export function RelatorioSection() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const res = await API.getPedidos(); setPedidos(Array.isArray(res) ? res : []); }
+    try { const r = await API.getPedidos(); setPedidos(Array.isArray(r) ? r : []); }
     catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setLoading(false); }
   }, [showToast]);
-
   useEffect(() => { load(); }, [load]);
 
-  const pagos   = pedidos.filter((p) => p.pagamento === "REALIZADO");
-  const total   = pagos.reduce((s,p) => s + (parseFloat(String(p.totalVenda)) || 0), 0);
+  const pagos = pedidos.filter((p) => p.pagamento === "REALIZADO");
+  const total = pagos.reduce((s,p) => s + (parseFloat(String(p.totalVenda)) || 0), 0);
   const totalMs = pagos.filter((p) => isThisMonth(p.dataCompra)).reduce((s,p) => s + (parseFloat(String(p.totalVenda)) || 0), 0);
-  const ticket  = pagos.length ? total / pagos.length : 0;
+  const ticket = pagos.length ? total / pagos.length : 0;
 
-  return (
-    <div className="flex flex-col gap-4 sm:gap-6">
-      <div className="flex justify-end">
-        <button onClick={load} className="p-2 rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors"><RefreshCw size={14} /></button>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        {loading ? [1,2,3].map((i) => <div key={i} className="skeleton h-[88px] rounded-[var(--radius-lg)]" />) : (
-          <>
-            <StatR icon={<TrendingUp size={22} />} cls="bg-[var(--success-soft)] text-[var(--success)]" label="Lucro Total"   value={formatCurrency(total)} />
-            <StatR icon={<Calendar size={22} />}   cls="bg-[var(--purple-soft)] text-[var(--accent)]"   label="Lucro do Mês" value={formatCurrency(totalMs)} />
-            <StatR icon={<Target size={22} />}     cls="bg-[var(--info-soft)] text-[var(--info)]"       label="Ticket Médio" value={formatCurrency(ticket)} />
-          </>
-        )}
-      </div>
-      {!loading && <MiniChart pedidos={pagos} />}
-    </div>
-  );
-}
-
-function StatR({ icon, cls, label, value }: { icon: React.ReactNode; cls: string; label: string; value: string }) {
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 sm:p-5 flex items-center gap-4">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${cls}`}>{icon}</div>
-      <div><p className="text-[0.72rem] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-1">{label}</p><p className="text-[1.4rem] font-bold tracking-tight">{value}</p></div>
-    </div>
-  );
-}
-
-function MiniChart({ pedidos }: { pedidos: Pedido[] }) {
-  const days: { key: string; label: string; total: number }[] = [];
-  const now = new Date();
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(now); d.setDate(d.getDate() - i);
-    days.push({ key: d.toISOString().slice(0,10), label: `${d.getDate()}/${d.getMonth()+1}`, total: 0 });
-  }
-  pedidos.forEach((p) => {
-    const k = new Date(p.dataCompra).toISOString().slice(0,10);
-    const d = days.find((x) => x.key === k);
-    if (d) d.total += parseFloat(String(p.totalVenda)) || 0;
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (13 - i));
+    return { key: d.toISOString().slice(0,10), label: `${d.getDate()}/${d.getMonth()+1}`, total: 0 };
   });
+  pagos.forEach((p) => { const k = new Date(p.dataCompra).toISOString().slice(0,10); const d = days.find((x) => x.key === k); if (d) d.total += parseFloat(String(p.totalVenda)) || 0; });
   const max = Math.max(...days.map((d) => d.total), 100);
 
   return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] overflow-hidden">
-      <div className="px-5 py-4 border-b border-[var(--border)]">
-        <h3 className="text-[0.9rem] font-bold text-[var(--text-muted)] uppercase tracking-[0.05em]">Vendas — Últimos 14 Dias</h3>
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+        <button className="btn-icon" onClick={load}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.8"/></svg></button>
       </div>
-      <div className="p-4 sm:p-5">
-        <div className="flex items-end gap-1 sm:gap-1.5 h-28">
-          {days.map((d,i) => {
-            const h = Math.max(2, (d.total / max) * 100);
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                <div
-                  title={`${d.label}: ${d.total > 0 ? `R$ ${d.total.toFixed(2)}` : "—"}`}
-                  className="w-full rounded-t-sm transition-all"
-                  style={{ height: `${h}%`, background: d.total > 0 ? "var(--accent)" : "var(--border)" }}
-                />
-                <span className="text-[0.58rem] text-[var(--text-dim)] hidden sm:block">{i % 2 === 0 ? d.label : ""}</span>
+      <div className="relatorio-cards">
+        {loading ? [1,2,3].map((i) => <div key={i} className="skeleton-line" style={{ height: "88px", borderRadius: "var(--radius-lg)" }} />) : (
+          <>
+            {[
+              { cls: "icon-green", label: "Lucro Total",   value: formatCurrency(total),   icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> },
+              { cls: "icon-purple",label: "Lucro do Mês",  value: formatCurrency(totalMs), icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
+              { cls: "icon-blue",  label: "Ticket Médio",  value: formatCurrency(ticket),  icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> },
+            ].map((s) => (
+              <div key={s.label} className="overview-card">
+                <div className={`card-icon ${s.cls}`}>{s.icon}</div>
+                <div className="card-info"><span className="card-label">{s.label}</span><div className="card-value">{s.value}</div></div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </>
+        )}
       </div>
+      {!loading && (
+        <div className="chart-card">
+          <div className="chart-header"><div className="chart-title">Vendas — Últimos 14 Dias</div></div>
+          <div className="chart-wrapper">
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "4px", height: "120px" }}>
+              {days.map((d, i) => (
+                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", height: "100%" }}>
+                  <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "flex-end" }}>
+                    <div title={`${d.label}: ${d.total > 0 ? `R$ ${d.total.toFixed(2)}` : "—"}`} style={{ width: "100%", height: `${Math.max(2, (d.total / max) * 100)}%`, background: d.total > 0 ? "var(--accent)" : "var(--border)", borderRadius: "3px 3px 0 0", transition: "height .3s" }} />
+                  </div>
+                  <span style={{ fontSize: "0.58rem", color: "var(--text-dim)", whiteSpace: "nowrap" }}>{i % 2 === 0 ? d.label : ""}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// USUÁRIOS
-// ══════════════════════════════════════════════════════════════════════════════
-const SECOES = [
-  { key: "estoque",  label: "Estoque"  },
-  { key: "pedidos",  label: "Pedidos"  },
-  { key: "cupons",   label: "Cupons"   },
-  { key: "config",   label: "Config"   },
-  { key: "usuarios", label: "Usuários" },
-];
+// ══ USUÁRIOS ═════════════════════════════════════════════════════════════════
+const SECOES = [{ key: "estoque", label: "Estoque" },{ key: "pedidos", label: "Pedidos" },{ key: "cupons", label: "Cupons" },{ key: "config", label: "Config" },{ key: "usuarios", label: "Usuários" }];
 
 export function UsuariosSection() {
   const { isAdmin, user: me, setUser } = useAuth();
@@ -437,67 +324,56 @@ export function UsuariosSection() {
   const load = useCallback(async () => {
     if (!isAdmin()) return;
     setLoading(true);
-    try { const res = await API.getUsuarios(); setData(Array.isArray(res) ? res : []); }
+    try { const r = await API.getUsuarios(); setData(Array.isArray(r) ? r : []); }
     catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setLoading(false); }
   }, [isAdmin, showToast]);
-
   useEffect(() => { load(); }, [load]);
 
+  if (!isAdmin()) return <p className="td-muted">Acesso restrito a administradores.</p>;
+
   const deactivate = async () => {
-    if (!deactivateId) return;
-    setDeactivating(true);
-    try {
-      await API.deleteUsuario(deactivateId);
-      setData((prev) => prev.map((u) => u.id === deactivateId ? { ...u, ativo: false } : u));
-      showToast("Usuário desativado.", "success");
-    } catch (e: unknown) { showToast((e as Error).message, "error"); }
+    if (!deactivateId) return; setDeactivating(true);
+    try { await API.deleteUsuario(deactivateId); setData((p) => p.map((u) => u.id === deactivateId ? { ...u, ativo: false } : u)); showToast("Usuário desativado.", "success"); }
+    catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setDeactivating(false); setDeactivateId(null); }
   };
 
-  if (!isAdmin()) return <p className="text-[var(--text-muted)]">Acesso restrito a administradores.</p>;
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        <Button size="sm" onClick={() => setEditUser(null)}><Plus size={14} /> Novo Usuário</Button>
-        <button onClick={load} className="p-2 rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors"><RefreshCw size={14} /></button>
+    <div>
+      <div className="section-header">
+        <div className="section-actions">
+          <button className="btn btn-primary btn-sm" onClick={() => setEditUser(null)}>+ Novo Usuário</button>
+          <button className="btn-icon" onClick={load}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.8"/></svg></button>
+        </div>
       </div>
-
-      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] overflow-hidden overflow-x-auto">
-        <table className="w-full border-collapse min-w-[500px]">
-          <thead><tr className="border-b border-[var(--border)]">
-            {["Usuário","E-mail","Papel","Status","Ações"].map((h) => (
-              <th key={h} className="px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-[0.07em] text-[var(--text-muted)]">{h}</th>
-            ))}
-          </tr></thead>
+      <div className="table-wrapper">
+        <table className="data-table">
+          <thead><tr>{["Usuário","E-mail","Papel","Status","Ações"].map((h) => <th key={h}>{h}</th>)}</tr></thead>
           <tbody>
             {loading ? <SkeletonRows rows={3} cols={5} /> :
              data.map((u) => {
                const initials = (u.nome || "?").split(" ").map((p) => p[0]).join("").slice(0,2).toUpperCase();
                return (
-                 <tr key={u.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)] transition-colors">
-                   <td className="px-4 py-3">
-                     <div className="flex items-center gap-2.5">
-                       <div className="w-8 h-8 rounded-full overflow-hidden bg-[var(--accent-soft)] border border-[var(--accent)] flex items-center justify-center text-[var(--accent)] text-[0.7rem] font-bold shrink-0">
-                         {u.foto ? <img src={u.foto} alt="" className="w-full h-full object-cover" /> : initials}
+                 <tr key={u.id} className="table-row">
+                   <td>
+                     <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                       <div className="sidebar-user-avatar" style={{ width: "32px", height: "32px", fontSize: "0.7rem" }}>
+                         {u.foto ? <img src={u.foto} alt="" /> : initials}
                        </div>
-                       <div>
-                         <p className="font-semibold text-[0.875rem]">{u.nome}</p>
-                         <p className="text-[0.75rem] text-[var(--text-muted)]">@{u.apelido}</p>
-                       </div>
+                       <div><div className="font-medium" style={{ fontSize: "0.875rem" }}>{u.nome}</div><div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>@{u.apelido}</div></div>
                      </div>
                    </td>
-                   <td className="px-4 py-3 text-[var(--text-muted)] text-[0.875rem]">{u.email}</td>
-                   <td className="px-4 py-3"><Badge variant={u.isAdmin ? "purple" : "gray"}>{u.isAdmin ? "Admin" : "Usuário"}</Badge></td>
-                   <td className="px-4 py-3"><Badge variant={u.ativo ? "green" : "red"}>{u.ativo ? "Ativo" : "Inativo"}</Badge></td>
-                   <td className="px-4 py-3">
+                   <td className="td-muted">{u.email}</td>
+                   <td><Badge variant={u.isAdmin ? "purple" : "gray"}>{u.isAdmin ? "Admin" : "Usuário"}</Badge></td>
+                   <td><Badge variant={u.ativo ? "green" : "red"}>{u.ativo ? "Ativo" : "Inativo"}</Badge></td>
+                   <td>
                      {!u.isAdmin ? (
-                       <div className="flex items-center gap-1">
-                         <button onClick={() => setEditUser(u)} className="p-1.5 rounded text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"><Tag size={14} /></button>
-                         {me?.id !== u.id && <button onClick={() => setDeactivateId(u.id)} className="p-1.5 rounded text-[var(--text-muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] transition-colors"><Trash2 size={14} /></button>}
+                       <div className="actions-cell">
+                         <button className="btn-icon" onClick={() => setEditUser(u)} title="Permissões"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>
+                         {me?.id !== u.id && <button className="btn-icon btn-danger-icon" onClick={() => setDeactivateId(u.id)} title="Desativar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>}
                        </div>
-                     ) : <span className="text-[var(--text-muted)] text-[0.78rem]">—</span>}
+                     ) : <span className="td-muted">—</span>}
                    </td>
                  </tr>
                );
@@ -505,30 +381,18 @@ export function UsuariosSection() {
           </tbody>
         </table>
       </div>
-
       {editUser !== undefined && (
         <UsuarioModal user={editUser} onClose={() => setEditUser(undefined)}
-          onSaved={(saved, isNew) => {
-            if (isNew) { setData((prev) => [saved, ...prev]); }
-            else { setData((prev) => prev.map((u) => u.id === saved.id ? saved : u)); }
-            if (me?.id === saved.id) setUser(saved);
-            setEditUser(undefined);
-          }}
+          onSaved={(saved, isNew) => { if (isNew) setData((p) => [saved, ...p]); else setData((p) => p.map((u) => u.id === saved.id ? saved : u)); if (me?.id === saved.id) setUser(saved); setEditUser(undefined); }}
           showToast={showToast} />
       )}
-
       <ConfirmModal open={deactivateId !== null} onClose={() => setDeactivateId(null)} onConfirm={deactivate} loading={deactivating}
-        message={`Desativar o usuário <strong>${data.find((u) => u.id === deactivateId)?.nome}</strong>? Ele não conseguirá mais fazer login.`} />
+        message={`Desativar <strong>${data.find((u) => u.id === deactivateId)?.nome}</strong>? Ele não conseguirá mais fazer login.`} />
     </div>
   );
 }
 
-function UsuarioModal({ user, onClose, onSaved, showToast }: {
-  user: Usuario | null;
-  onClose: () => void;
-  onSaved: (u: Usuario, isNew: boolean) => void;
-  showToast: (msg: string, t?: "success"|"error"|"warning"|"info") => void;
-}) {
+function UsuarioModal({ user, onClose, onSaved, showToast }: { user: Usuario | null; onClose: () => void; onSaved: (u: Usuario, isNew: boolean) => void; showToast: (m: string, t?: "success"|"error"|"warning"|"info") => void }) {
   const isNew = !user;
   const [nome, setNome] = useState(user?.nome || "");
   const [apelido, setApelido] = useState(user?.apelido || "");
@@ -538,20 +402,14 @@ function UsuarioModal({ user, onClose, onSaved, showToast }: {
   const [foto, setFoto] = useState(user?.foto || "");
   const [uploading, setUploading] = useState(false);
   const [perms, setPerms] = useState<Record<string,{ver:boolean,editar:boolean}>>(
-    user?.permissoes
-      ? Object.fromEntries(SECOES.map((s) => [s.key, user.permissoes[s.key as keyof typeof user.permissoes] || { ver:false, editar:false }]))
-      : Object.fromEntries(SECOES.map((s) => [s.key, { ver:false, editar:false }]))
+    Object.fromEntries(SECOES.map((s) => [s.key, user?.permissoes?.[s.key as keyof typeof user.permissoes] || { ver:false, editar:false }]))
   );
   const [saving, setSaving] = useState(false);
 
-  const handlePhotoFile = async (file: File, isCamera: boolean) => {
-    void isCamera;
+  const handlePhoto = async (file: File) => {
     setUploading(true);
-    try {
-      const fd = new FormData(); fd.append("file", file);
-      const res = await API.uploadImagem(fd);
-      if (res?.url) setFoto(res.url);
-    } catch (e: unknown) { showToast((e as Error).message, "error"); }
+    try { const fd = new FormData(); fd.append("file", file); const r = await API.uploadImagem(fd); if (r?.url) setFoto(r.url); }
+    catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setUploading(false); }
   };
 
@@ -563,75 +421,68 @@ function UsuarioModal({ user, onClose, onSaved, showToast }: {
       const permissoes = Object.fromEntries(SECOES.map((s) => [s.key, perms[s.key]])) as unknown as Usuario["permissoes"];
       if (isNew) {
         const novo = await API.createUsuario({ nome, apelido, email, senha, foto: foto || null, permissoes, ativo: true });
-        showToast(`Usuário "${nome}" criado!`, "success");
-        onSaved(novo, true);
+        showToast(`Usuário criado!`, "success"); onSaved(novo, true);
       } else {
         const dados: Parameters<typeof API.updateUsuario>[1] = { nome, apelido, foto: foto || null, permissoes, ativo };
         if (senha && senha.length >= 8) dados.senha = senha;
         const updated = await API.updateUsuario(user!.id, dados);
-        showToast("Usuário atualizado!", "success");
-        onSaved({ ...user!, ...updated }, false);
+        showToast("Usuário atualizado!", "success"); onSaved({ ...user!, ...updated }, false);
       }
     } catch (e: unknown) { showToast((e as Error).message, "error"); }
     finally { setSaving(false); }
   };
 
   return (
-    <Modal open onClose={onClose} title={isNew ? "Novo Usuário" : "Editar Usuário"} maxWidth="max-w-[500px]"
-      footer={<><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button onClick={save} loading={saving}>{isNew ? "Criar Usuário" : "Salvar Alterações"}</Button></>}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Nome completo *" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="João Silva" />
-        <Input label="Apelido *" value={apelido} onChange={(e) => setApelido(e.target.value)} placeholder="joao" />
+    <Modal open onClose={onClose} title={isNew ? "Novo Usuário" : "Editar Usuário"}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Salvando…" : (isNew ? "Criar Usuário" : "Salvar")}</button></>}>
+      <div className="form-grid-2">
+        <div className="form-group"><label>Nome completo *</label><input className="input-field" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="João Silva" /></div>
+        <div className="form-group"><label>Apelido *</label><input className="input-field" value={apelido} onChange={(e) => setApelido(e.target.value)} placeholder="joao" /></div>
       </div>
-      <Input label="E-mail *" type="email" value={email} onChange={(e) => setEmail(e.target.value)} readOnly={!isNew} />
-      <Input label={isNew ? "Senha *" : "Nova Senha (deixe em branco para manter)"} type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder={isNew ? "Mínimo 8 caracteres" : "••••••"} />
+      <div className="form-group"><label>E-mail *</label><input className="input-field" type="email" value={email} onChange={(e) => setEmail(e.target.value)} readOnly={!isNew} /></div>
+      <div className="form-group"><label>{isNew ? "Senha *" : "Nova Senha (deixe em branco para manter)"}</label><input className="input-field" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder={isNew ? "Mínimo 8 caracteres" : "••••••"} /></div>
 
-      {/* Photo: camera + upload, NO URL field */}
-      <div className="flex flex-col gap-2">
-        <label className="text-[0.78rem] font-semibold text-[var(--text-muted)] uppercase tracking-[0.06em]">Foto do Usuário</label>
-        {foto && <img src={foto} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-[var(--accent)]" />}
-        <div className="flex gap-2 flex-wrap">
-          <label className="flex items-center gap-2 px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--bg)] border border-[var(--border)] cursor-pointer hover:border-[var(--accent)] transition-colors text-[0.82rem] text-[var(--text-muted)]">
-            📷 Câmera
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && handlePhotoFile(e.target.files[0], true)} />
+      {/* Foto — câmera + galeria, sem campo de URL */}
+      <div className="form-group">
+        <label>Foto do Usuário</label>
+        {foto && <img src={foto} alt="" style={{ width: "56px", height: "56px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--accent)", marginBottom: "0.5rem" }} />}
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--bg)", cursor: "pointer", fontSize: "0.82rem", color: "var(--text-muted)" }}>
+            📷 Câmera<input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handlePhoto(e.target.files[0])} />
           </label>
-          <label className="flex items-center gap-2 px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--bg)] border border-[var(--border)] cursor-pointer hover:border-[var(--accent)] transition-colors text-[0.82rem] text-[var(--text-muted)]">
-            🖼️ {uploading ? "Enviando…" : "Galeria"}
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePhotoFile(e.target.files[0], false)} />
+          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--bg)", cursor: "pointer", fontSize: "0.82rem", color: "var(--text-muted)" }}>
+            🖼️ {uploading ? "Enviando…" : "Galeria"}<input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handlePhoto(e.target.files[0])} />
           </label>
-          {foto && <button onClick={() => setFoto("")} className="px-3 py-2 text-[0.82rem] text-[var(--danger)] hover:bg-[var(--danger-soft)] rounded transition-colors">Remover</button>}
+          {foto && <button type="button" onClick={() => setFoto("")} style={{ padding: "0.4rem 0.75rem", borderRadius: "var(--radius-sm)", border: "none", background: "var(--danger-soft)", color: "var(--danger)", cursor: "pointer", fontSize: "0.82rem" }}>Remover</button>}
         </div>
       </div>
 
-      {/* Permissions */}
-      <div>
-        <p className="text-[0.78rem] font-bold uppercase tracking-[0.06em] text-[var(--text-muted)] mb-2">Permissões de Acesso</p>
-        <div className="border border-[var(--border)] rounded-[var(--radius-md)] overflow-hidden">
-          <div className="grid grid-cols-[1fr_80px_80px] bg-[var(--bg)] border-b border-[var(--border)] px-4 py-2 text-[0.7rem] font-bold uppercase tracking-wide text-[var(--text-muted)]">
-            <span>Seção</span><span className="text-center">Ver</span><span className="text-center">Editar</span>
-          </div>
-          {SECOES.map((s) => (
-            <div key={s.key} className="grid grid-cols-[1fr_80px_80px] items-center px-4 py-2.5 border-b border-[var(--border)] last:border-0">
-              <span className="text-[0.875rem] font-medium">{s.label}</span>
-              <div className="flex justify-center">
-                <input type="checkbox" checked={perms[s.key]?.ver || false}
-                  onChange={(e) => { const v = e.target.checked; setPerms((p) => ({ ...p, [s.key]: { ...p[s.key], ver: v, editar: v ? p[s.key]?.editar : false } })); }}
-                  className="w-4 h-4 accent-[var(--accent)] cursor-pointer" />
-              </div>
-              <div className="flex justify-center">
-                <input type="checkbox" checked={perms[s.key]?.editar || false}
-                  onChange={(e) => { const v = e.target.checked; setPerms((p) => ({ ...p, [s.key]: { ver: v ? true : p[s.key]?.ver, editar: v } })); }}
-                  className="w-4 h-4 accent-[var(--accent)] cursor-pointer" />
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Permissões */}
+      <div className="form-group">
+        <label>Permissões de Acesso</label>
+        <table className="perm-table">
+          <thead><tr><th style={{ textAlign: "left" }}>Seção</th><th>Ver</th><th>Editar</th></tr></thead>
+          <tbody>
+            {SECOES.map((s) => (
+              <tr key={s.key}>
+                <td>{s.label}</td>
+                <td style={{ textAlign: "center" }}>
+                  <input type="checkbox" className="perm-check" checked={perms[s.key]?.ver || false}
+                    onChange={(e) => { const v = e.target.checked; setPerms((p) => ({ ...p, [s.key]: { ...p[s.key], ver: v, editar: v ? p[s.key]?.editar : false } })); }} />
+                </td>
+                <td style={{ textAlign: "center" }}>
+                  <input type="checkbox" className="perm-check" checked={perms[s.key]?.editar || false}
+                    onChange={(e) => { const v = e.target.checked; setPerms((p) => ({ ...p, [s.key]: { ver: v ? true : p[s.key]?.ver, editar: v } })); }} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
       {!isNew && (
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
-          <span className="text-[0.875rem]">Usuário ativo</span>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem" }}>
+          <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} style={{ width: "16px", height: "16px", accentColor: "var(--accent)" }} />
+          Usuário ativo
         </label>
       )}
     </Modal>
