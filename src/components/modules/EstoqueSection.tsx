@@ -19,7 +19,6 @@ export function EstoqueSection() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editingProduct, setEditingProduct] = useState<Produto | null | undefined>(undefined);
-  const [previewProduct, setPreviewProduct] = useState<Produto | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -118,9 +117,6 @@ export function EstoqueSection() {
                    <td className="font-medium">{formatCurrency(p.valor)}</td>
                    <td>
                      <div className="actions-cell">
-                       <button className="btn-icon" title="Preview" onClick={() => setPreviewProduct(p)}>
-                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                       </button>
                        {podeEditar && <>
                          <button className="btn-icon" title="Editar" onClick={() => setEditingProduct(p)}>
                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -171,10 +167,6 @@ export function EstoqueSection() {
                 </div>
               )}
               <div className="mobile-card-actions">
-                <button className="btn btn-ghost btn-sm" onClick={() => setPreviewProduct(p)}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  Ver
-                </button>
                 {podeEditar && <>
                   <button className="btn btn-ghost btn-sm" onClick={() => setEditingProduct(p)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -194,7 +186,6 @@ export function EstoqueSection() {
       {editingProduct !== undefined && (
         <ProductModal product={editingProduct} onClose={() => setEditingProduct(undefined)} onSaved={handleSaved} showToast={showToast} />
       )}
-      {previewProduct && <PreviewModal product={previewProduct} onClose={() => setPreviewProduct(null)} />}
       <ConfirmModal
         open={deleteId !== null} onClose={() => setDeleteId(null)} onConfirm={handleDelete} loading={deleting}
         message={`Excluir <strong>${data.find((p) => p.id === deleteId)?.produto || "este produto"}</strong>? Esta ação não pode ser desfeita.`}
@@ -311,31 +302,3 @@ function ProductModal({ product, onClose, onSaved, showToast }: {
   );
 }
 
-function PreviewModal({ product: p, onClose }: { product: Produto; onClose: () => void }) {
-  const nome = p.produto || p.nome || "—";
-  const preco = parseFloat(String(p.valor)) || 0;
-  const qtd = parseInt(String(p.qtd)) || 0;
-  return (
-    <Modal open onClose={onClose} title="Preview — Card da Loja" maxWidth="max-w-[300px]">
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-        <div style={{ width: "240px", background: "var(--surface-alt)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
-          <div style={{ position: "relative" }}>
-            {p.imagem
-              ? <img src={p.imagem} alt={nome} style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
-              : <div style={{ width: "100%", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", color: "var(--text-dim)" }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
-            }
-            {qtd <= 5 && <span style={{ position: "absolute", top: "8px", left: "8px", background: "var(--danger)", color: "#fff", fontSize: "0.6rem", fontWeight: 700, padding: "2px 8px", borderRadius: "99px" }}>Últimas unidades</span>}
-          </div>
-          <div style={{ padding: "0.75rem" }}>
-            <p style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.25rem" }}>{nome}</p>
-            {p.linha && <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.35rem" }}>{p.linha}{p.litros ? ` · ${p.litros}` : ""}</p>}
-            <p style={{ color: "var(--accent)", fontWeight: 700, fontSize: "1.05rem", marginBottom: "0.25rem" }}>R$ {preco.toFixed(2)}</p>
-            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>{qtd} em estoque</p>
-            <div style={{ background: "var(--accent)", opacity: 0.5, color: "#fff", textAlign: "center", fontSize: "0.82rem", fontWeight: 600, padding: "6px", borderRadius: "8px" }}>Adicionar ao Carrinho</div>
-          </div>
-        </div>
-        <p style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>Visualização aproximada.</p>
-      </div>
-    </Modal>
-  );
-}
