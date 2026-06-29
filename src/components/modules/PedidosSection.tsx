@@ -6,7 +6,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import { SkeletonRows } from "@/components/ui/Skeleton";
-import { ConfirmModal } from "@/components/ui/Modal";
+import { ConfirmModal, Portal } from "@/components/ui/Modal";
 import type { Pedido, EtapaPedido } from "@/types";
 
 type PagFilter = "" | "PENDENTE" | "REALIZADO";
@@ -174,11 +174,11 @@ export function PedidosSection() {
 
       {/* Detail panel */}
       {selected && (
-        <>
+        <Portal>
           <div className="panel-overlay visible" onClick={() => setSelected(null)} />
           <DetailPanel pedido={selected} precos={precos} podeEditar={podeEditar}
             onClose={() => setSelected(null)} onAdvance={advanceEtapa} onMarkPaid={markPaid} onDevolucao={devolucao} />
-        </>
+        </Portal>
       )}
 
       <ConfirmModal open={!!confirm} onClose={() => setConfirm(null)} onConfirm={async () => { setConfirming(true); try { await confirm?.action(); } finally { setConfirming(false); setConfirm(null); } }}

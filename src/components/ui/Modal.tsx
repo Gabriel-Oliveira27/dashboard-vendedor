@@ -1,8 +1,18 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+
+/** Renderiza children num portal no <body>, evitando que ancestrais com
+ *  transform/animation/overflow (ex.: .section-animate) prendam o modal. */
+export function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+}
 
 interface ModalProps { open: boolean; onClose: () => void; title?: string; children: React.ReactNode; maxWidth?: string; footer?: React.ReactNode; }
-export function Modal({ open, onClose, title, children, footer }: ModalProps) {
+export function Modal({ open, onClose, title, children, maxWidth, footer }: ModalProps) {
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -14,20 +24,22 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="modal-overlay visible" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card">
-        {title && (
-          <div className="modal-header">
-            <h3>{title}</h3>
-            <button className="btn-icon" onClick={onClose}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-        )}
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-footer">{footer}</div>}
+    <Portal>
+      <div className="modal-overlay visible" onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className="modal-card" style={maxWidth ? { maxWidth } : undefined}>
+          {title && (
+            <div className="modal-header">
+              <h3>{title}</h3>
+              <button className="btn-icon" onClick={onClose}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          )}
+          <div className="modal-body">{children}</div>
+          {footer && <div className="modal-footer">{footer}</div>}
+        </div>
       </div>
-    </div>
+    </Portal>
   );
 }
 
@@ -39,20 +51,22 @@ export function ConfirmModal({ open, onClose, onConfirm, message, confirmLabel =
   }, [open]);
   if (!open) return null;
   return (
-    <div className="modal-overlay visible" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card confirm-card">
-        <div className="modal-header">
-          <h3>Confirmar</h3>
-          <button className="btn-icon" onClick={onClose}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </div>
-        <div className="modal-body">
-          <p className="confirm-msg" dangerouslySetInnerHTML={{ __html: message }} />
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-danger" onClick={onConfirm} disabled={loading}>{loading ? "Aguarde…" : confirmLabel}</button>
+    <Portal>
+      <div className="modal-overlay visible" onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className="modal-card confirm-card">
+          <div className="modal-header">
+            <h3>Confirmar</h3>
+            <button className="btn-icon" onClick={onClose}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div className="modal-body">
+            <p className="confirm-msg" dangerouslySetInnerHTML={{ __html: message }} />
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button className="btn btn-danger" onClick={onConfirm} disabled={loading}>{loading ? "Aguarde…" : confirmLabel}</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }
