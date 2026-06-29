@@ -54,19 +54,21 @@ export function OverviewSection() {
         )}
       </div>
 
-      <div className="low-stock-section">
-        <div className="section-subtitle">Estoque Baixo (menos de 5 unidades)</div>
-        {loading ? <div className="skeleton-line w60" style={{marginTop:"0.75rem"}} /> :
-         baixo.length === 0 ? <p className="empty-state-small">✓ Todos os produtos com estoque adequado.</p> : (
-          <div className="low-stock-list">
-            {baixo.map((p) => (
-              <div key={p.id} className="low-stock-item">
-                <span className="low-stock-name">{p.produto || p.nome || "—"}</span>
-                <Badge variant="red">{p.qtd} un</Badge>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="overview-bottom">
+        <div className="low-stock-section">
+          <div className="section-subtitle">Estoque Baixo (menos de 5 unidades)</div>
+          {loading ? <div className="skeleton-line w60" style={{marginTop:"0.75rem"}} /> :
+           baixo.length === 0 ? <p className="empty-state-small">✓ Todos os produtos com estoque adequado.</p> : (
+            <div className="low-stock-list">
+              {baixo.map((p) => (
+                <div key={p.id} className="low-stock-item">
+                  <span className="low-stock-name">{p.produto || p.nome || "—"}</span>
+                  <Badge variant="red">{p.qtd} un</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
