@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useMemo, useState, useCallback } from "react";
 import { API } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -25,6 +25,9 @@ const nextEtapa = (e: EtapaPedido): EtapaPedido | null => {
   return i === -1 || i >= ETAPA_SEQ.length - 2 ? null : ETAPA_SEQ[i + 1];
 };
 
+/** Primeiro nome do cliente (1º token), para o agrupamento. */
+const primeiroNome = (n?: string) => (n || "").trim().split(/\s+/)[0] || "—";
+
 export function PedidosSection() {
   const { isAdmin, canEdit } = useAuth();
   const { showToast } = useToast();
@@ -32,6 +35,7 @@ export function PedidosSection() {
   const [loading, setLoading] = useState(true);
   const [etapaFilter, setEtapaFilter] = useState("");
   const [pagFilter, setPagFilter] = useState<PagFilter>("");
+  const [groupByName, setGroupByName] = useState(false);
   const [selected, setSelected] = useState<Pedido | null>(null);
   const [precos, setPrecos] = useState<Record<string, number>>({});
   const [confirm, setConfirm] = useState<{ msg: string; action: () => Promise<void> } | null>(null);
@@ -53,6 +57,20 @@ export function PedidosSection() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = data.filter((p) => (!etapaFilter || p.etapa === etapaFilter) && (!pagFilter || p.pagamento === pagFilter));
+
+  // Agrupamento por primeiro nome do cliente (quando ativado).
+  const groups = useMemo(() => {
+    if (!groupByName) return null;
+    const m = new Map<string, Pedido[]>();
+    for (const p of filtered) {
+      const key = primeiroNome(p.nome).toLowerCase();
+      if (!m.has(key)) m.set(key, []);
+      m.get(key)!.push(p);
+    }
+    return Array.from(m.values())
+      .map((arr) => ({ nome: primeiroNome(arr[0].nome), arr }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [groupByName, filtered]);
 
   const updatePedido = (id: number, patch: Partial<Pedido>) => {
     setData((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p));
@@ -86,6 +104,52 @@ export function PedidosSection() {
     }});
   };
 
+  // Renderizadores reutilizados nos modos plano e agrupado.
+  const renderRow = (p: Pedido) => {
+    const et = ETAPA_META[p.etapa] || { label: p.etapa, variant: "gray" as const };
+    const pago = p.pagamento === "REALIZADO";
+    return (
+      <tr key={p.id} className="table-row clickable-row" onClick={() => setSelected(p)}>
+        <td><code className="code-badge">{p.idRastreio || String(p.id)}</code></td>
+        <td className="font-medium">{p.nome}</td>
+        <td className="font-medium">{formatCurrency(p.totalVenda)}</td>
+        <td className="td-muted">{p.metodoPagamento}</td>
+        <td><Badge variant={et.variant}>{et.label}</Badge></td>
+        <td><Badge variant={pago ? "green" : "yellow"}>{pago ? "Realizado" : "Pendente"}</Badge></td>
+        <td className="td-muted td-date">{formatDate(p.dataCompra)}</td>
+      </tr>
+    );
+  };
+
+  const renderCard = (p: Pedido) => {
+    const et = ETAPA_META[p.etapa] || { label: p.etapa, variant: "gray" as const };
+    const pago = p.pagamento === "REALIZADO";
+    return (
+      <div key={p.id} className="mobile-card" onClick={() => setSelected(p)} style={{ cursor: "pointer" }}>
+        <div className="mobile-card-row">
+          <span className="font-medium">{p.nome}</span>
+          <code className="code-badge">{p.idRastreio || String(p.id)}</code>
+        </div>
+        <div className="mobile-card-row">
+          <span className="mobile-card-label">Total</span>
+          <span className="font-medium">{formatCurrency(p.totalVenda)}</span>
+        </div>
+        <div className="mobile-card-row">
+          <span className="mobile-card-label">Etapa</span>
+          <Badge variant={et.variant}>{et.label}</Badge>
+        </div>
+        <div className="mobile-card-row">
+          <span className="mobile-card-label">Pagamento</span>
+          <Badge variant={pago ? "green" : "yellow"}>{pago ? "Realizado" : "Pendente"}</Badge>
+        </div>
+        <div className="mobile-card-row">
+          <span className="mobile-card-label">Data</span>
+          <span className="td-muted" style={{ fontSize: "0.8rem" }}>{formatDate(p.dataCompra)}</span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
       {/* Filters */}
@@ -100,6 +164,14 @@ export function PedidosSection() {
             <option value="PENDENTE">Pendente</option>
             <option value="REALIZADO">Realizado</option>
           </select>
+          <button
+            className={`btn btn-sm ${groupByName ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setGroupByName((g) => !g)}
+            title="Agrupar por primeiro nome do cliente"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><polyline points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            Agrupar por nome
+          </button>
           <button className="btn-icon" onClick={load} title="Atualizar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.8"/></svg>
           </button>
@@ -117,21 +189,17 @@ export function PedidosSection() {
           <tbody>
             {loading ? <SkeletonRows rows={6} cols={7} /> :
              filtered.length === 0 ? <tr><td colSpan={7} className="empty-state">Nenhum pedido encontrado.</td></tr> :
-             filtered.map((p) => {
-               const et = ETAPA_META[p.etapa] || { label: p.etapa, variant: "gray" as const };
-               const pago = p.pagamento === "REALIZADO";
-               return (
-                 <tr key={p.id} className="table-row clickable-row" onClick={() => setSelected(p)}>
-                   <td><code className="code-badge">{p.idRastreio || String(p.id)}</code></td>
-                   <td className="font-medium">{p.nome}</td>
-                   <td className="font-medium">{formatCurrency(p.totalVenda)}</td>
-                   <td className="td-muted">{p.metodoPagamento}</td>
-                   <td><Badge variant={et.variant}>{et.label}</Badge></td>
-                   <td><Badge variant={pago ? "green" : "yellow"}>{pago ? "Realizado" : "Pendente"}</Badge></td>
-                   <td className="td-muted td-date">{formatDate(p.dataCompra)}</td>
+             groups ? groups.map((g) => (
+               <Fragment key={g.nome}>
+                 <tr className="group-row">
+                   <td colSpan={7} style={{ background: "var(--surface-alt)", fontWeight: 700, color: "var(--text)" }}>
+                     {g.nome} <span style={{ color: "var(--text-dim)", fontWeight: 600 }}>· {g.arr.length}</span>
+                   </td>
                  </tr>
-               );
-             })}
+                 {g.arr.map(renderRow)}
+               </Fragment>
+             )) :
+             filtered.map(renderRow)}
           </tbody>
         </table>
       </div>
@@ -142,34 +210,14 @@ export function PedidosSection() {
           <div className="skeleton-line" style={{ height: "80px", borderRadius: "var(--radius-md)" }} />
         ) : filtered.length === 0 ? (
           <p className="empty-state">Nenhum pedido encontrado.</p>
-        ) : filtered.map((p) => {
-          const et = ETAPA_META[p.etapa] || { label: p.etapa, variant: "gray" as const };
-          const pago = p.pagamento === "REALIZADO";
-          return (
-            <div key={p.id} className="mobile-card" onClick={() => setSelected(p)} style={{ cursor: "pointer" }}>
-              <div className="mobile-card-row">
-                <span className="font-medium">{p.nome}</span>
-                <code className="code-badge">{p.idRastreio || String(p.id)}</code>
-              </div>
-              <div className="mobile-card-row">
-                <span className="mobile-card-label">Total</span>
-                <span className="font-medium">{formatCurrency(p.totalVenda)}</span>
-              </div>
-              <div className="mobile-card-row">
-                <span className="mobile-card-label">Etapa</span>
-                <Badge variant={et.variant}>{et.label}</Badge>
-              </div>
-              <div className="mobile-card-row">
-                <span className="mobile-card-label">Pagamento</span>
-                <Badge variant={pago ? "green" : "yellow"}>{pago ? "Realizado" : "Pendente"}</Badge>
-              </div>
-              <div className="mobile-card-row">
-                <span className="mobile-card-label">Data</span>
-                <span className="td-muted" style={{ fontSize: "0.8rem" }}>{formatDate(p.dataCompra)}</span>
-              </div>
+        ) : groups ? groups.map((g) => (
+          <Fragment key={g.nome}>
+            <div className="mobile-group-header" style={{ padding: "0.5rem 0.25rem", fontWeight: 700, color: "var(--text)" }}>
+              {g.nome} <span style={{ color: "var(--text-dim)", fontWeight: 600 }}>· {g.arr.length}</span>
             </div>
-          );
-        })}
+            {g.arr.map(renderCard)}
+          </Fragment>
+        )) : filtered.map(renderCard)}
       </div>
 
       {/* Detail panel */}
