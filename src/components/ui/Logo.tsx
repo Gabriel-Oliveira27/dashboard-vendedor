@@ -3,6 +3,8 @@ interface LogoIconProps {
   className?: string;
 }
 
+/** Marca "containers empilhados" — remete a estoque/inventário.
+ *  Desenhada em branco para uso sobre o tile com gradiente da marca. */
 export function LogoIcon({ size = 36, className }: LogoIconProps) {
   return (
     <svg
@@ -13,31 +15,14 @@ export function LogoIcon({ size = 36, className }: LogoIconProps) {
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
-      {/* Lid */}
-      <rect x="5" y="7" width="26" height="6" rx="2.5" fill="white" fillOpacity="0.95"/>
-      {/* Lid handle */}
-      <rect x="14" y="4" width="8" height="4" rx="2" fill="white" fillOpacity="0.7"/>
-      {/* Body */}
-      <path
-        d="M7 13h22l-2 16a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2L7 13z"
-        fill="white"
-        fillOpacity="0.25"
-      />
-      <path
-        d="M7 13h22l-2 16a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2L7 13z"
-        stroke="white"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-        fillOpacity="0"
-      />
-      {/* Shine line on body */}
-      <path
-        d="M11.5 17 L10.5 24"
-        stroke="white"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        strokeOpacity="0.4"
-      />
+      {/* container de cima (menor) */}
+      <rect x="11" y="6"  width="14" height="6" rx="3" fill="white" fillOpacity="0.40"/>
+      {/* container do meio */}
+      <rect x="9"  y="14" width="18" height="7" rx="3" fill="white" fillOpacity="0.65"/>
+      {/* container da base (maior) */}
+      <rect x="7"  y="23" width="22" height="7" rx="3" fill="white" fillOpacity="0.95"/>
+      {/* brilho sutil na base */}
+      <rect x="10" y="25.5" width="5" height="2" rx="1" fill="#7c3aed" fillOpacity="0.55"/>
     </svg>
   );
 }
@@ -49,16 +34,16 @@ export function LogoFull({ size = 36 }: { size?: number }) {
         style={{
           width: size,
           height: size,
-          borderRadius: "10px",
-          background: "linear-gradient(135deg, var(--accent) 0%, #5b21b6 100%)",
+          borderRadius: "11px",
+          background: "linear-gradient(140deg, var(--accent) 0%, #5b21b6 100%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
-          boxShadow: "0 4px 14px rgba(124,58,237,0.4)",
+          boxShadow: "0 6px 18px rgba(124,58,237,0.45)",
         }}
       >
-        <LogoIcon size={size * 0.78} />
+        <LogoIcon size={size * 0.74} />
       </div>
       <span style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text-muted)", letterSpacing: "-0.01em" }}>
         Tupper<strong style={{ color: "var(--text)", fontWeight: 700 }}>Store</strong>
@@ -67,12 +52,16 @@ export function LogoFull({ size = 36 }: { size?: number }) {
   );
 }
 
-// Standalone SVG string for favicon generation
+// SVG standalone (geração de favicon / ícone) — tile com gradiente embutido
 export const LOGO_SVG_STRING = `<svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="36" height="36" rx="9" fill="#7c3aed"/>
-  <rect x="5" y="7" width="26" height="6" rx="2.5" fill="white" fill-opacity="0.95"/>
-  <rect x="14" y="4" width="8" height="4" rx="2" fill="white" fill-opacity="0.7"/>
-  <path d="M7 13h22l-2 16a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2L7 13z" fill="white" fill-opacity="0.25"/>
-  <path d="M7 13h22l-2 16a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2L7 13z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-  <path d="M11.5 17 L10.5 24" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.4"/>
+  <defs>
+    <linearGradient id="tsg" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#5b21b6"/>
+    </linearGradient>
+  </defs>
+  <rect width="36" height="36" rx="10" fill="url(#tsg)"/>
+  <rect x="11" y="6"  width="14" height="6" rx="3" fill="white" fill-opacity="0.40"/>
+  <rect x="9"  y="14" width="18" height="7" rx="3" fill="white" fill-opacity="0.65"/>
+  <rect x="7"  y="23" width="22" height="7" rx="3" fill="white" fill-opacity="0.95"/>
 </svg>`;
