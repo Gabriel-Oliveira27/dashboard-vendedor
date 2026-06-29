@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { API } from "@/lib/api";
 import { ThemeProvider, useTheme, THEMES } from "@/contexts/ThemeContext";
+import { LogoIcon } from "@/components/ui/Logo";
 import type { Theme } from "@/types";
 
 /* ── Inline SVG icons to avoid lucide className issues ── */
@@ -328,13 +329,7 @@ function LoginContent() {
             {/* Brand */}
             <div className="login-brand">
               <div className="login-brand-icon">
-                <svg width="26" height="26" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="5" y="7" width="26" height="6" rx="2.5" fill="white" fillOpacity="0.95"/>
-                  <rect x="14" y="4" width="8" height="4" rx="2" fill="white" fillOpacity="0.7"/>
-                  <path d="M7 13h22l-2 16a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2L7 13z" fill="white" fillOpacity="0.25"/>
-                  <path d="M7 13h22l-2 16a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2L7 13z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-                  <path d="M11.5 17 L10.5 24" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.4"/>
-                </svg>
+                <LogoIcon size={26} />
               </div>
               <span className="login-brand-text">
                 Tupper<strong>Store</strong>
